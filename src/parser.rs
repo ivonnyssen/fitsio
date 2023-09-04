@@ -120,7 +120,7 @@ fn date(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
 }*/
 
 fn is_ascii_text_char(c: u8) -> bool {
-    c >= 32u8 && c <= 126u8
+    (32u8..=126u8).contains(&c)
 }
 
 /*fn keyword_record(
