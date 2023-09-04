@@ -73,6 +73,28 @@ pub struct KeywordRecord<'a> {
     comment: Option<&'a str>,
 }
 
+impl<'a> KeywordRecord<'a> {
+    pub fn new(keyword: keywords::Keyword, value: Value<'a>, comment: Option<&'a str>) -> Self {
+        Self {
+            keyword,
+            value,
+            comment,
+        }
+    }
+
+    pub fn keyword(&self) -> &keywords::Keyword {
+        &self.keyword
+    }
+
+    pub fn value(&self) -> &Value {
+        &self.value
+    }
+
+    pub fn comment(&self) -> &Option<&str> {
+        &self.comment
+    }
+}
+
 /// The possible values of a KeywordRecord.
 #[derive(PartialEq, Debug)]
 pub enum Value<'a> {

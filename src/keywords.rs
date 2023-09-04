@@ -1,4 +1,4 @@
-#[derive(PartialEq, Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Keyword {
     Simple,
     BitPix,
@@ -88,108 +88,40 @@ pub enum Keyword {
     */
 }
 
-impl From<&[u8]> for Keyword {
-    fn from(i: &[u8]) -> Self {
+#[derive(Debug, PartialEq)]
+pub enum ParseKeywordError {
+    UnknownKeyword,
+    NotANumber,
+}
+
+impl TryFrom<&[u8]> for Keyword {
+    type Error = ParseKeywordError;
+
+    fn try_from(i: &[u8]) -> Result<Self, Self::Error> {
         match i {
-            b"COMMENT " => Keyword::Comment,
-            b"SIMPLE" => Keyword::Simple,
-            b"BITPIX" => Keyword::BitPix,
-            b"NAXIS" => Keyword::NAxis(0),
-            b"END" => Keyword::End,
-            _ => unimplemented!("unknown keyword"),
+            b"COMMENT " => Ok(Keyword::Comment),
+            b"SIMPLE  " => Ok(Keyword::Simple),
+            b"BITPIX  " => Ok(Keyword::BitPix),
+            b"NAXIS   " => Ok(Keyword::NAxis(0)),
+            b"END" => Ok(Keyword::End),
+            _ => Err(ParseKeywordError::UnknownKeyword),
         }
     }
 }
 
 #[derive(PartialEq, Debug)]
-pub enum PrimaryHDU {
-    SIMPLE,
-    BITPIX,
-    NAXIS,
-    NAXISn(u16),
-    END,
+pub enum ValueIndicator {
+    EqualSpace,
+    None,
+    Unknown,
 }
 
-#[derive(PartialEq, Debug)]
-pub enum ConformingExtension {
-    XTENSION,
-    BITPIX,
-    NAXIS,
-    NAXISn(u16),
-    PCOUNT,
-    GCOUNT,
-    END,
-}
-
-#[derive(PartialEq, Debug)]
-pub enum ImageExtension {
-    XTENSION,
-    BITPIX,
-    NAXIS,
-    NAXISn(u16),
-    PCOUNT, // =0
-    GCOUNT, // =1
-    END,
-}
-
-#[derive(PartialEq, Debug)]
-pub enum ASCIITableExtension {
-    XTENSION,
-    BITPIX, //=8
-    NAXIS,  //=2
-    NAXIS1,
-    NAXIS2,
-    PCOUNT, //=0
-    GCOUNT, //=1
-    TFIELDS,
-    TFORM(u16),
-    TBCOL(u16),
-    END,
-}
-
-#[derive(PartialEq, Debug)]
-pub enum BinaryTableExtension {
-    XTENSION,
-    BITPIX, //=8
-    NAXIS,  //=2
-    NAXIS1,
-    NAXIS2,
-    PCOUNT,
-    GCOUNT, // =1
-    TFIELDS,
-    TFORM(u16),
-    END,
-}
-
-#[derive(PartialEq, Debug)]
-pub enum CompressedImages {
-    ZIMAGE, // =T
-    ZBITPIX,
-    ZNAXIS,
-    ZNAXISn(u16),
-    ZCMPTYPE,
-}
-
-#[derive(PartialEq, Debug)]
-pub enum CompressedTables {
-    ZTABLE, // =T
-    ZNAXIS1,
-    ZNAXIS2,
-    ZPCOUNT,
-    ZFORM(u16),
-    ZCTYP(u16),
-    ZTILELEN,
-}
-
-#[derive(PartialEq, Debug)]
-pub enum RandomGroupsRecords {
-    SIMPLE,
-    BITPIX,
-    NAXIS,
-    NAXIS1, // =0
-    NAXISn(u16),
-    GROUPS, // =T
-    PCOUNT,
-    GCOUNT,
-    END,
+impl From<&[u8]> for ValueIndicator {
+    fn from(i: &[u8]) -> Self {
+        match i {
+            b"= " => ValueIndicator::EqualSpace,
+            b"  " => ValueIndicator::None,
+            _ => ValueIndicator::Unknown,
+        }
+    }
 }
