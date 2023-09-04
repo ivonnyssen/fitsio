@@ -74,7 +74,7 @@ fn integer(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
 }
 
 fn real(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
-    context("real", map(double, Value::Real))(i)
+    context("real", map(preceded(space0, double), Value::Real))(i)
 }
 
 fn complex_integer(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
@@ -165,6 +165,15 @@ mod tests {
         assert_eq!(integer(b" 300"), Ok((&b""[..], Value::Integer(300))));
         assert_eq!(integer(b"300"), Ok((&b""[..], Value::Integer(300))));
         assert_ne!(integer(b"+500"), Ok((&b""[..], Value::Integer(300))));
+    }
+
+    #[test]
+    fn test_real() {
+        assert_eq!(real(b"+300.1"), Ok((&b""[..], Value::Real(300.1))));
+        assert_eq!(real(b"-300.1"), Ok((&b""[..], Value::Real(-300.1))));
+        assert_eq!(real(b" 300.1"), Ok((&b""[..], Value::Real(300.1))));
+        assert_eq!(real(b"300.1"), Ok((&b""[..], Value::Real(300.1))));
+        assert_ne!(real(b"+500.1"), Ok((&b""[..], Value::Real(300.1))));
     }
 
     #[test]
