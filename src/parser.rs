@@ -70,7 +70,7 @@ fn logical(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
 }
 
 fn integer(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
-    context("integer", map(i64, Value::Integer))(i)
+    context("integer", map(preceded(space0, i64), Value::Integer))(i)
 }
 
 fn real(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
@@ -82,7 +82,7 @@ fn complex_integer(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
         "complex integer",
         map(
             separated_pair(
-                preceded(tag("("), i64),
+                preceded(tag("("), preceded(space0, i64)),
                 tag(","),
                 preceded(space0, terminated(i64, tag(")"))),
             ),
@@ -162,12 +162,17 @@ mod tests {
     fn test_integer() {
         assert_eq!(integer(b"+300"), Ok((&b""[..], Value::Integer(300))));
         assert_eq!(integer(b"-300"), Ok((&b""[..], Value::Integer(-300))));
+        assert_eq!(integer(b" 300"), Ok((&b""[..], Value::Integer(300))));
         assert_eq!(integer(b"300"), Ok((&b""[..], Value::Integer(300))));
         assert_ne!(integer(b"+500"), Ok((&b""[..], Value::Integer(300))));
     }
 
     #[test]
     fn test_complex_integer() {
+        assert_eq!(
+            complex_integer(b"( 123, 45)"),
+            Ok((&b""[..], Value::ComplexInteger((123, 45))))
+        );
         assert_eq!(
             complex_integer(b"(123, 45)"),
             Ok((&b""[..], Value::ComplexInteger((123, 45))))
