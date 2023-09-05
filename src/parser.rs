@@ -9,7 +9,7 @@ use nom::{
     error::VerboseError,
     multi::many0,
     number::complete::double,
-    sequence::{preceded, separated_pair, terminated},
+    sequence::{preceded, separated_pair, terminated, tuple},
     IResult,
 };
 
@@ -132,22 +132,40 @@ fn date(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
     )(i)
 }
 
-/*fn comment(i: &[u8]) -> IResult<&[u8], Option<&str>, VerboseError<&[u8]>> {
-    tag("/")(i)
-}*/
+fn comment(i: &[u8]) -> IResult<&[u8], &[u8], VerboseError<&[u8]>> {
+    context(
+        "keyword comment",
+        map(
+            preceded(tag("/"), take_while(is_ascii_text_char)),
+            |s: &[u8]| s,
+        ),
+    )(i)
+}
 
 fn is_ascii_text_char(c: u8) -> bool {
     (32u8..=126u8).contains(&c)
 }
 
-/*fn keyword_record(
-    i: &[u8],
-) -> IResult<&[u8], Result<KeywordRecord, ParseKeywordError>, VerboseError<&[u8]>> {
+fn keyword_record(i: &[u8]) -> IResult<&[u8], KeywordRecord, VerboseError<&[u8]>> {
     context(
         "keyword_record",
-        tuple((keyword, value_indicator, value, comment)),
+        map(
+            tuple((
+                keyword,
+                value_indicator,
+                value,
+                opt(preceded(space0, comment)),
+            )),
+            |(keyword, value_indicator, value, comment)| {
+                KeywordRecord::new(
+                    keyword,
+                    value,
+                    comment.map(|s| std::str::from_utf8(s).unwrap()),
+                )
+            },
+        ),
     )(i)
-}*/
+}
 
 #[cfg(test)]
 mod tests {
