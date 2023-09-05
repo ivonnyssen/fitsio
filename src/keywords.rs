@@ -3,8 +3,10 @@ pub enum Keyword {
     Simple,
     BitPix,
     Comment,
-    NAxis(u16),
+    NAxis,
+    NAxisn(u16),
     End,
+    Unknown,
     /*    AUTHOR,
         BITPIX,
         BLANK,
@@ -88,23 +90,15 @@ pub enum Keyword {
     */
 }
 
-#[derive(Debug, PartialEq)]
-pub enum ParseKeywordError {
-    UnknownKeyword,
-    NotANumber,
-}
-
-impl TryFrom<&[u8]> for Keyword {
-    type Error = ParseKeywordError;
-
-    fn try_from(i: &[u8]) -> Result<Self, Self::Error> {
+impl From<&[u8]> for Keyword {
+    fn from(i: &[u8]) -> Self {
         match i {
-            b"COMMENT " => Ok(Keyword::Comment),
-            b"SIMPLE  " => Ok(Keyword::Simple),
-            b"BITPIX  " => Ok(Keyword::BitPix),
-            b"NAXIS   " => Ok(Keyword::NAxis(0)),
-            b"END" => Ok(Keyword::End),
-            _ => Err(ParseKeywordError::UnknownKeyword),
+            b"COMMENT " => Keyword::Comment,
+            b"SIMPLE  " => Keyword::Simple,
+            b"BITPIX  " => Keyword::BitPix,
+            b"NAXIS   " => Keyword::NAxis,
+            b"END" => Keyword::End,
+            _ => Keyword::Unknown,
         }
     }
 }

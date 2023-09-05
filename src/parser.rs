@@ -13,11 +13,11 @@ use nom::{
     IResult,
 };
 
-use crate::keywords::{Keyword, ParseKeywordError, ValueIndicator};
+use crate::keywords::{Keyword, ValueIndicator};
 use crate::types::{KeywordRecord, Value};
 
-fn keyword(i: &[u8]) -> IResult<&[u8], Result<Keyword, ParseKeywordError>, VerboseError<&[u8]>> {
-    context("keyword", take(8u8))(i).map(|(i, res)| (i, res.try_into()))
+fn keyword(i: &[u8]) -> IResult<&[u8], Keyword, VerboseError<&[u8]>> {
+    context("keyword", take(8u8))(i).map(|(i, res)| (i, res.into()))
 }
 
 fn value_indicator(i: &[u8]) -> IResult<&[u8], ValueIndicator, VerboseError<&[u8]>> {
@@ -155,11 +155,8 @@ mod tests {
 
     #[test]
     fn test_keyword() {
-        assert_eq!(keyword(b"COMMENT "), Ok((&b""[..], Ok(Keyword::Comment))));
-        assert_eq!(
-            keyword(b"COMMENT-"),
-            Ok((&b""[..], Err(ParseKeywordError::UnknownKeyword)))
-        );
+        assert_eq!(keyword(b"COMMENT "), Ok((&b""[..], Keyword::Comment)));
+        assert_eq!(keyword(b"COMMENT-"), Ok((&b""[..], Keyword::Unknown)));
     }
 
     #[test]
