@@ -102,20 +102,3 @@ impl From<&[u8]> for Keyword {
         }
     }
 }
-
-#[derive(PartialEq, Debug)]
-pub enum ValueIndicator {
-    EqualSpace,
-    None,
-    Unknown,
-}
-
-impl From<&[u8]> for ValueIndicator {
-    fn from(i: &[u8]) -> Self {
-        match i {
-            b"= " => ValueIndicator::EqualSpace,
-            b"  " => ValueIndicator::None,
-            _ => ValueIndicator::Unknown,
-        }
-    }
-}
