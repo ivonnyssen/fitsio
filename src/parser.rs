@@ -2,15 +2,15 @@ use std::u8;
 
 use nom::{
     branch::alt,
-    bytes::complete::{is_a, tag, take, take_while},
+    bytes::complete::{tag, take, take_while},
     character::complete::{i64, space0},
-    character::is_digit,
     combinator::{map, opt},
     error::context,
     error::VerboseError,
+    multi::many0,
     number::complete::double,
     sequence::{preceded, separated_pair, terminated},
-    Err, IResult,
+    IResult,
 };
 
 use crate::keywords::{Keyword, ParseKeywordError, ValueIndicator};
@@ -50,10 +50,27 @@ fn character_string(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
     context(
         "character_string",
         map(
-            take_while(|c| is_ascii_text_char(c) && c != b'\''),
-            |s: &[u8]| Value::CharacterString(std::str::from_utf8(s).unwrap()),
+            many0(preceded(tag(b"'"), terminated(no_single_quote, tag(b"'")))),
+            |parts: Vec<&[u8]>| Value::CharacterString(u8vec_to_str(parts)),
         ),
     )(i)
+}
+
+fn u8vec_to_str(v: Vec<&[u8]>) -> String {
+    let mut it = v.iter().peekable();
+    let mut acc = String::new();
+    while let Some(part) = it.next() {
+        acc.push_str(std::str::from_utf8(part).unwrap());
+        match it.peek().is_some() {
+            true => acc.push('\''),
+            false => (),
+        }
+    }
+    acc
+}
+
+fn no_single_quote(i: &[u8]) -> IResult<&[u8], &[u8], VerboseError<&[u8]>> {
+    context("no_single_quote", take_while(|c| c != b'\''))(i)
 }
 
 fn continued_string(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
@@ -110,7 +127,7 @@ fn date(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
     context(
         "date",
         map(take_while(is_ascii_text_char), |s: &[u8]| {
-            Value::Date(std::str::from_utf8(s).unwrap())
+            Value::Date(std::str::from_utf8(s).unwrap().to_string())
         }),
     )(i)
 }
@@ -155,6 +172,26 @@ mod tests {
         assert_ne!(
             value_indicator(b"xx"),
             Ok((&b""[..], ValueIndicator::EqualSpace))
+        );
+    }
+
+    #[test]
+    fn test_character_string() {
+        assert_eq!(
+            character_string(b"'This file is part of the EUVE Science Archive. It contains'"),
+            Ok((
+                &b""[..],
+                Value::CharacterString(
+                    "This file is part of the EUVE Science Archive. It contains".to_string()
+                )
+            ))
+        );
+        assert_eq!(
+            character_string(b"'String with single quote '' 123.45 , _ + - '"),
+            Ok((
+                &b""[..],
+                Value::CharacterString("String with single quote ' 123.45 , _ + - ".to_string())
+            ))
         );
     }
 
@@ -224,23 +261,23 @@ mod tests {
     fn test_date() {
         assert_eq!(
             date(b"0000-01-01T00:00:00"),
-            Ok((&b""[..], Value::Date("0000-01-01T00:00:00")))
+            Ok((&b""[..], Value::Date("0000-01-01T00:00:00".to_string())))
         );
         assert_eq!(
             date(b"9999-12-31T23:59:59"),
-            Ok((&b""[..], Value::Date("9999-12-31T23:59:59")))
+            Ok((&b""[..], Value::Date("9999-12-31T23:59:59".to_string())))
         );
         assert_eq!(
             date(b"99999-01-01T00:00:00"),
-            Ok((&b""[..], Value::Date("99999-01-01T00:00:00")))
+            Ok((&b""[..], Value::Date("99999-01-01T00:00:00".to_string())))
         );
         assert_eq!(
             date(b"+99999-12-31T23:59:59"),
-            Ok((&b""[..], Value::Date("+99999-12-31T23:59:59")))
+            Ok((&b""[..], Value::Date("+99999-12-31T23:59:59".to_string())))
         );
         assert_eq!(
             date(b"-04713-11-24T12:00:00"),
-            Ok((&b""[..], Value::Date("-04713-11-24T12:00:00")))
+            Ok((&b""[..], Value::Date("-04713-11-24T12:00:00".to_string())))
         );
     }
 

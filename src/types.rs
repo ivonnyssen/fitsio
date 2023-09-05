@@ -99,7 +99,7 @@ impl<'a> KeywordRecord<'a> {
 #[derive(PartialEq, Debug)]
 pub enum Value<'a> {
     /// An ASCII string 0x20 - 0x7E. FITS standard section 4.2.1.1
-    CharacterString(&'a str),
+    CharacterString(String),
     /// A multi-part string. FITS standard section 4.2.1.2
     ContinuedString(Vec<&'a str>),
     /// A logical constant or value `F` or `T`. FITS standard section 4.2.2
@@ -113,5 +113,5 @@ pub enum Value<'a> {
     /// Complex floating point number. FITS standard section 4.2.6
     ComplexFloat((f64, f64)),
     /// Date. ISO-8601 string. FITS standard section 4.2.7
-    Date(&'a str),
+    Date(String),
 }
