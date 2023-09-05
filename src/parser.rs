@@ -26,12 +26,13 @@ fn keyword(i: &[u8]) -> IResult<&[u8], Keyword, VerboseError<&[u8]>> {
         .map(|(i, res)| (i, res))
 }*/
 
+//todo: parse the right value for each keyword
 fn value(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
     context(
         "value",
         alt((
             character_string,
-            continued_string,
+            //continued_string,
             logical,
             integer,
             real,
@@ -149,7 +150,7 @@ fn date(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
         "date",
         map(
             preceded(tag("= "), preceded(space0, take_while(is_ascii_text_char))),
-            |s: &[u8]| Value::Date(std::str::from_utf8(s).unwrap().to_string()),
+            |s: &[u8]| Value::Date(std::str::from_utf8(s).unwrap().trim_end().to_string()),
         ),
     )(i)
 }
@@ -159,7 +160,7 @@ fn comment(i: &[u8]) -> IResult<&[u8], &[u8], VerboseError<&[u8]>> {
         "keyword comment",
         map(
             preceded(tag("/"), take_while(is_ascii_text_char)),
-            |s: &[u8]| s,
+            |s: &[u8]| std::str::from_utf8(s).unwrap().trim_end().as_bytes(),
         ),
     )(i)
 }
@@ -315,39 +316,39 @@ mod tests {
         );
     }
 
-    /*  #[test]
-        fn test_keyword_record() {
-            assert_eq!(
-                keyword_record(
-                    b"COMMENT     'This file is part of the EUVE Science Archive. It contains'        "
-                ),
-                Ok((
-                    &b""[..],
-                    (Ok(KeywordRecord::new(
-                        Keyword::Comment,
-                        Value::CharacterString(
-                            "This file is part of the EUVE Science Archive. It contains"
-                        ),
-                        None
-                    )))
+    #[test]
+    fn test_keyword_record() {
+        /* assert_eq!(
+            keyword_record(
+                b"COMMENT     'This file is part of the EUVE Science Archive. It contains'        "
+            ),
+            Ok((
+                &b""[..],
+                (KeywordRecord::new(
+                    Keyword::Comment,
+                    Value::CharacterString(
+                        "This file is part of the EUVE Science Archive. It contains".to_string()
+                    ),
+                    None
                 ))
-            );
+            ))
+        );*/
 
-            assert_eq!(
-                keyword_record(
-                    b"SIMPLE  =                    T / FITS STANDARD                                  "
-                ),
-                Ok((
-                    &b""[..],
-                    (Ok(KeywordRecord::new(
-                        Keyword::Simple,
-                        Value::Logical(true),
-                        Some("FITS STANDARD")
-                    )))
+        assert_eq!(
+            keyword_record(
+                b"SIMPLE  =                    T / FITS STANDARD                                  "
+            ),
+            Ok((
+                &b""[..],
+                (KeywordRecord::new(
+                    Keyword::Simple,
+                    Value::Logical(true),
+                    Some(" FITS STANDARD")
                 ))
-            );
-        }
-    */
+            ))
+        );
+    }
+
     /*
     "COMMENT     ' '                                                                 COMMENT     'This file is part of the EUVE Science Archive. It contains'        "
      */
