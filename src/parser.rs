@@ -16,6 +16,19 @@ use nom::{
 use crate::keywords::Keyword;
 use crate::types::{KeywordRecord, Value};
 
+mod character_string;
+mod complex_float;
+mod complex_integer;
+mod date;
+mod integer;
+mod logical;
+mod real;
+
+use crate::parser::{
+    character_string::character_string, complex_float::complex_float,
+    complex_integer::complex_integer, date::date, integer::integer, logical::logical, real::real,
+};
+
 fn keyword(i: &[u8]) -> IResult<&[u8], Keyword, VerboseError<&[u8]>> {
     context("keyword", map(complete(take(8u8)), Keyword::from))(i)
 }
@@ -39,116 +52,8 @@ fn value(i: &[u8]) -> IResult<&[u8], (Value, Option<&[u8]>), VerboseError<&[u8]>
     )(i)
 }
 
-fn character_string(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
-    context(
-        "character_string",
-        map(
-            preceded(
-                space0,
-                terminated(
-                    many0(preceded(tag(b"'"), terminated(no_single_quote, tag(b"'")))),
-                    space0,
-                ),
-            ),
-            |parts: Vec<&[u8]>| Value::CharacterString(u8vec_to_string(parts)),
-        ),
-    )(i)
-}
-
-fn u8vec_to_string(v: Vec<&[u8]>) -> String {
-    let mut it = v.iter().peekable();
-    let mut acc = String::new();
-    while let Some(part) = it.next() {
-        acc.push_str(std::str::from_utf8(part).unwrap());
-        match it.peek().is_some() {
-            true => acc.push('\''),
-            false => (),
-        }
-    }
-    acc
-}
-
-fn no_single_quote(i: &[u8]) -> IResult<&[u8], &[u8], VerboseError<&[u8]>> {
-    context("no_single_quote", take_while(|c| c != b'\''))(i)
-}
-
 fn continued_string(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
     todo!()
-}
-
-fn logical(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
-    context(
-        "logical",
-        map(
-            preceded(space0, terminated(alt((tag("T"), tag("F"))), space0)),
-            |s: &[u8]| Value::Logical(s == b"T"),
-        ),
-    )(i)
-}
-
-fn integer(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
-    context(
-        "integer",
-        map(preceded(space0, terminated(i64, space0)), Value::Integer),
-    )(i)
-}
-
-fn real(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
-    context(
-        "real",
-        map(preceded(space0, terminated(double, space0)), Value::Real),
-    )(i)
-}
-
-fn complex_integer(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
-    context(
-        "complex integer",
-        map(
-            preceded(
-                space0,
-                terminated(
-                    separated_pair(
-                        preceded(tag("("), preceded(space0, i64)),
-                        tag(","),
-                        preceded(space0, terminated(i64, tag(")"))),
-                    ),
-                    space0,
-                ),
-            ),
-            Value::ComplexInteger,
-        ),
-    )(i)
-}
-
-fn complex_float(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
-    context(
-        "complex integer",
-        map(
-            preceded(
-                space0,
-                terminated(
-                    separated_pair(
-                        preceded(tag("("), double),
-                        tag(","),
-                        preceded(space0, terminated(double, tag(")"))),
-                    ),
-                    space0,
-                ),
-            ),
-            Value::ComplexFloat,
-        ),
-    )(i)
-}
-
-fn date(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
-    //CCYY-MM-DD[Thh:mm:ss[.s...]]
-    context(
-        "date",
-        map(
-            preceded(space0, take_while(is_ascii_text_char)),
-            |s: &[u8]| Value::Date(std::str::from_utf8(s).unwrap().trim_end().to_string()),
-        ),
-    )(i)
 }
 
 fn value_comment(i: &[u8]) -> IResult<&[u8], &[u8], VerboseError<&[u8]>> {
@@ -159,10 +64,6 @@ fn value_comment(i: &[u8]) -> IResult<&[u8], &[u8], VerboseError<&[u8]>> {
             |s: &[u8]| std::str::from_utf8(s).unwrap().trim_end().as_bytes(),
         ),
     )(i)
-}
-
-fn is_ascii_text_char(c: u8) -> bool {
-    (32u8..=126u8).contains(&c)
 }
 
 fn keyword_record(i: &[u8]) -> IResult<&[u8], KeywordRecord, VerboseError<&[u8]>> {
@@ -200,191 +101,6 @@ mod tests {
         assert_eq!(
             value(b"=                    T                                                  "),
             Ok((&b""[..], (Value::Logical(true), None)))
-        );
-    }
-
-    #[test]
-    fn test_character_string() {
-        assert_eq!(
-            character_string(
-                b"'This file is part of the EUVE Science Archive. It contains'          "
-            ),
-            Ok((
-                &b""[..],
-                Value::CharacterString(
-                    "This file is part of the EUVE Science Archive. It contains".to_string()
-                )
-            ))
-        );
-        assert_eq!(
-            character_string(
-                b"'String with single quote '' 123.45 , _ + - '                         "
-            ),
-            Ok((
-                &b""[..],
-                Value::CharacterString("String with single quote ' 123.45 , _ + - ".to_string())
-            ))
-        );
-    }
-
-    #[test]
-    fn test_logical() {
-        assert_eq!(
-            logical(b"                   T                                                  "),
-            Ok((&b""[..], Value::Logical(true)))
-        );
-        assert_eq!(
-            logical(b"                   F                                                  "),
-            Ok((&b""[..], Value::Logical(false)))
-        );
-        assert_eq!(
-            logical(b"T                                                                     "),
-            Ok((&b""[..], Value::Logical(true)))
-        );
-        assert_eq!(
-            logical(b" F                                                                    "),
-            Ok((&b""[..], Value::Logical(false)))
-        );
-        assert_ne!(
-            logical(b" T   /Test comment                                                    "),
-            Ok((
-                &b"/Test comment                                                    "[..],
-                Value::Logical(false)
-            ))
-        );
-    }
-
-    #[test]
-    fn test_integer() {
-        assert_eq!(
-            integer(b"+300                                                                  "),
-            Ok((&b""[..], Value::Integer(300)))
-        );
-        assert_eq!(
-            integer(b"  -300                                                                "),
-            Ok((&b""[..], Value::Integer(-300)))
-        );
-        assert_eq!(
-            integer(b" 300                                                                  "),
-            Ok((&b""[..], Value::Integer(300)))
-        );
-        assert_eq!(
-            integer(b"300                                                                   "),
-            Ok((&b""[..], Value::Integer(300)))
-        );
-        assert_ne!(
-            integer(b"+500                                                                  "),
-            Ok((&b""[..], Value::Integer(300)))
-        );
-    }
-
-    #[test]
-    fn test_real() {
-        assert_eq!(
-            real(b"+300.1                                                                "),
-            Ok((&b""[..], Value::Real(300.1)))
-        );
-        assert_eq!(
-            real(b"-300.1                                                                "),
-            Ok((&b""[..], Value::Real(-300.1)))
-        );
-        assert_eq!(
-            real(b" 300.1                                                                "),
-            Ok((&b""[..], Value::Real(300.1)))
-        );
-        assert_eq!(
-            real(b"300.1                                                                 "),
-            Ok((&b""[..], Value::Real(300.1)))
-        );
-        assert_ne!(
-            real(b"+500.1                                                                "),
-            Ok((&b""[..], Value::Real(300.1)))
-        );
-    }
-
-    #[test]
-    fn test_complex_integer() {
-        assert_eq!(
-            complex_integer(
-                b"( 123, 45)                                                            "
-            ),
-            Ok((&b""[..], Value::ComplexInteger((123, 45))))
-        );
-        assert_eq!(
-            complex_integer(
-                b"  (123, 45)                                                           "
-            ),
-            Ok((&b""[..], Value::ComplexInteger((123, 45))))
-        );
-        assert_eq!(
-            complex_integer(
-                b"(-123,-45)                                                            "
-            ),
-            Ok((&b""[..], Value::ComplexInteger((-123, -45))))
-        );
-        assert_eq!(
-            complex_integer(
-                b"(+123, +45)                                                           "
-            ),
-            Ok((&b""[..], Value::ComplexInteger((123, 45))))
-        );
-        assert_ne!(
-            complex_integer(
-                b"(-500,-45)                                                            "
-            ),
-            Ok((&b""[..], Value::ComplexInteger((-123, -45))))
-        );
-    }
-
-    #[test]
-    fn test_complex_float() {
-        assert_eq!(
-            complex_float(
-                b"(123.23, -45.7)                                                       "
-            ),
-            Ok((&b""[..], Value::ComplexFloat((123.23, -45.7))))
-        );
-        assert_eq!(
-            complex_float(
-                b" (+123.23, 45.7)                                                      "
-            ),
-            Ok((&b""[..], Value::ComplexFloat((123.23, 45.7))))
-        );
-        assert_eq!(
-            complex_float(
-                b"(-123.23, +45.7)                                                      "
-            ),
-            Ok((&b""[..], Value::ComplexFloat((-123.23, 45.7))))
-        );
-        assert_ne!(
-            complex_float(
-                b"(500.23, -45.7)                                                       "
-            ),
-            Ok((&b""[..], Value::ComplexFloat((123.23, -45.7))))
-        );
-    }
-
-    #[test]
-    fn test_date() {
-        assert_eq!(
-            date(b"0000-01-01T00:00:00                                                   "),
-            Ok((&b""[..], Value::Date("0000-01-01T00:00:00".to_string())))
-        );
-        assert_eq!(
-            date(b"                                                   9999-12-31T23:59:59"),
-            Ok((&b""[..], Value::Date("9999-12-31T23:59:59".to_string())))
-        );
-        assert_eq!(
-            date(b"99999-01-01T00:00:00                                                  "),
-            Ok((&b""[..], Value::Date("99999-01-01T00:00:00".to_string())))
-        );
-        assert_eq!(
-            date(b"+99999-12-31T23:59:59                                                 "),
-            Ok((&b""[..], Value::Date("+99999-12-31T23:59:59".to_string())))
-        );
-        assert_eq!(
-            date(b"-04713-11-24T12:00:00                                                 "),
-            Ok((&b""[..], Value::Date("-04713-11-24T12:00:00".to_string())))
         );
     }
 
