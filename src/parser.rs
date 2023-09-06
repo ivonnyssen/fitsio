@@ -24,16 +24,19 @@ fn keyword(i: &[u8]) -> IResult<&[u8], Keyword, VerboseError<&[u8]>> {
 fn value(i: &[u8]) -> IResult<&[u8], (Value, Option<&[u8]>), VerboseError<&[u8]>> {
     context(
         "value",
-        take(72u8).and_then(alt((
-            all_consuming(pair(character_string, opt(value_comment))),
-            //all_consuming(continued_string),
-            all_consuming(pair(logical, opt(value_comment))),
-            all_consuming(pair(integer, opt(value_comment))),
-            all_consuming(pair(real, opt(value_comment))),
-            all_consuming(pair(complex_integer, opt(value_comment))),
-            all_consuming(pair(complex_float, opt(value_comment))),
-            all_consuming(pair(date, opt(value_comment))),
-        ))),
+        take(72u8).and_then(preceded(
+            alt((tag("= "), tag("  "))),
+            alt((
+                all_consuming(pair(character_string, opt(value_comment))),
+                //all_consuming(continued_string),
+                all_consuming(pair(logical, opt(value_comment))),
+                all_consuming(pair(integer, opt(value_comment))),
+                all_consuming(pair(real, opt(value_comment))),
+                all_consuming(pair(complex_integer, opt(value_comment))),
+                all_consuming(pair(complex_float, opt(value_comment))),
+                all_consuming(pair(date, opt(value_comment))),
+            )),
+        )),
     )(i)
 }
 
@@ -41,12 +44,9 @@ fn character_string(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
     context(
         "character_string",
         map(
-            preceded(
-                tag(b"= "),
-                preceded(
-                    space0,
-                    many0(preceded(tag(b"'"), terminated(no_single_quote, tag(b"'")))),
-                ),
+            terminated(
+                many0(preceded(tag(b"'"), terminated(no_single_quote, tag(b"'")))),
+                space0,
             ),
             |parts: Vec<&[u8]>| Value::CharacterString(u8vec_to_string(parts)),
         ),
@@ -78,10 +78,7 @@ fn logical(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
     context(
         "logical",
         map(
-            preceded(
-                tag("= "),
-                preceded(space0, terminated(alt((tag("T"), tag("F"))), space0)),
-            ),
+            preceded(space0, terminated(alt((tag("T"), tag("F"))), space0)),
             |s: &[u8]| Value::Logical(s == b"T"),
         ),
     )(i)
@@ -207,7 +204,9 @@ mod tests {
     #[test]
     fn test_character_string() {
         assert_eq!(
-            character_string(b"=   'This file is part of the EUVE Science Archive. It contains'"),
+            character_string(
+                b"'This file is part of the EUVE Science Archive. It contains'          "
+            ),
             Ok((
                 &b""[..],
                 Value::CharacterString(
@@ -216,7 +215,9 @@ mod tests {
             ))
         );
         assert_eq!(
-            character_string(b"= 'String with single quote '' 123.45 , _ + - '"),
+            character_string(
+                b"'String with single quote '' 123.45 , _ + - '                         "
+            ),
             Ok((
                 &b""[..],
                 Value::CharacterString("String with single quote ' 123.45 , _ + - ".to_string())
@@ -227,16 +228,28 @@ mod tests {
     #[test]
     fn test_logical() {
         assert_eq!(
-            logical(b"=                    T"),
+            logical(b"                   T                                                  "),
             Ok((&b""[..], Value::Logical(true)))
         );
         assert_eq!(
-            logical(b"=                    F"),
+            logical(b"                   F                                                  "),
             Ok((&b""[..], Value::Logical(false)))
         );
-        assert_eq!(logical(b"= T"), Ok((&b""[..], Value::Logical(true))));
-        assert_eq!(logical(b"=  F"), Ok((&b""[..], Value::Logical(false))));
-        assert_ne!(logical(b"= T"), Ok((&b""[..], Value::Logical(false))));
+        assert_eq!(
+            logical(b"T                                                                     "),
+            Ok((&b""[..], Value::Logical(true)))
+        );
+        assert_eq!(
+            logical(b" F                                                                    "),
+            Ok((&b""[..], Value::Logical(false)))
+        );
+        assert_ne!(
+            logical(b" T   /Test comment                                                    "),
+            Ok((
+                &b"/Test comment                                                    "[..],
+                Value::Logical(false)
+            ))
+        );
     }
 
     #[test]
