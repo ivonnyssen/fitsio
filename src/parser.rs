@@ -3,13 +3,11 @@ use std::u8;
 use nom::{
     branch::alt,
     bytes::complete::{tag, take, take_while},
-    character::complete::{i64, space0},
+    character::complete::space0,
     combinator::{all_consuming, complete, map, opt},
     error::context,
     error::VerboseError,
-    multi::many0,
-    number::complete::double,
-    sequence::{pair, preceded, separated_pair, terminated, tuple},
+    sequence::{pair, preceded, tuple},
     IResult, Parser,
 };
 
@@ -19,6 +17,7 @@ use crate::types::{KeywordRecord, Value};
 mod character_string;
 mod complex_float;
 mod complex_integer;
+mod continued_string;
 mod date;
 mod integer;
 mod logical;
@@ -26,8 +25,13 @@ mod real;
 
 use crate::parser::{
     character_string::character_string, complex_float::complex_float,
-    complex_integer::complex_integer, date::date, integer::integer, logical::logical, real::real,
+    complex_integer::complex_integer, continued_string::continued_string, date::date,
+    integer::integer, logical::logical, real::real,
 };
+
+fn is_allowed_ascii(c: u8) -> bool {
+    (32u8..=126u8).contains(&c)
+}
 
 fn keyword(i: &[u8]) -> IResult<&[u8], Keyword, VerboseError<&[u8]>> {
     context("keyword", map(complete(take(8u8)), Keyword::from))(i)
@@ -52,15 +56,11 @@ fn value(i: &[u8]) -> IResult<&[u8], (Value, Option<&[u8]>), VerboseError<&[u8]>
     )(i)
 }
 
-fn continued_string(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
-    todo!()
-}
-
 fn value_comment(i: &[u8]) -> IResult<&[u8], &[u8], VerboseError<&[u8]>> {
     context(
         "value_comment",
         map(
-            preceded(space0, preceded(tag("/"), take_while(is_ascii_text_char))),
+            preceded(space0, preceded(tag("/"), take_while(is_allowed_ascii))),
             |s: &[u8]| std::str::from_utf8(s).unwrap().trim_end().as_bytes(),
         ),
     )(i)
@@ -136,8 +136,4 @@ mod tests {
             ))
         );
     }
-
-    /*
-    "COMMENT     ' '                                                                 COMMENT     'This file is part of the EUVE Science Archive. It contains'        "
-     */
 }

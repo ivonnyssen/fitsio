@@ -1,16 +1,8 @@
 use crate::types::Value;
 
 use nom::{
-    branch::alt,
-    bytes::complete::{tag, take, take_while},
-    character::complete::{i64, space0},
-    combinator::{all_consuming, complete, map, opt},
-    error::context,
-    error::VerboseError,
-    multi::many0,
-    number::complete::double,
-    sequence::{pair, preceded, separated_pair, terminated, tuple},
-    IResult, Parser,
+    bytes::complete::take_while, character::complete::space0, combinator::map, error::context,
+    error::VerboseError, sequence::preceded, IResult,
 };
 
 pub fn date(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
@@ -18,14 +10,10 @@ pub fn date(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
     context(
         "date",
         map(
-            preceded(space0, take_while(is_ascii_text_char)),
+            preceded(space0, take_while(super::is_allowed_ascii)),
             |s: &[u8]| Value::Date(std::str::from_utf8(s).unwrap().trim_end().to_string()),
         ),
     )(i)
-}
-
-fn is_ascii_text_char(c: u8) -> bool {
-    (32u8..=126u8).contains(&c)
 }
 
 #[cfg(test)]

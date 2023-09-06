@@ -1,16 +1,12 @@
 use crate::types::Value;
 
 use nom::{
-    branch::alt,
-    bytes::complete::{tag, take, take_while},
     character::complete::{i64, space0},
-    combinator::{all_consuming, complete, map, opt},
+    combinator::map,
     error::context,
     error::VerboseError,
-    multi::many0,
-    number::complete::double,
-    sequence::{pair, preceded, separated_pair, terminated, tuple},
-    IResult, Parser,
+    sequence::{preceded, terminated},
+    IResult,
 };
 
 pub fn integer(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
