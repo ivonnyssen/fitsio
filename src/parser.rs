@@ -4,42 +4,36 @@ use nom::{
     branch::alt,
     bytes::complete::{tag, take, take_while},
     character::complete::{i64, space0},
-    combinator::{map, opt},
+    combinator::{all_consuming, complete, map, opt},
     error::context,
     error::VerboseError,
     multi::many0,
     number::complete::double,
-    sequence::{preceded, separated_pair, terminated, tuple},
-    IResult,
+    sequence::{pair, preceded, separated_pair, terminated, tuple},
+    IResult, Parser,
 };
 
 use crate::keywords::Keyword;
 use crate::types::{KeywordRecord, Value};
 
 fn keyword(i: &[u8]) -> IResult<&[u8], Keyword, VerboseError<&[u8]>> {
-    context("keyword", take(8u8))(i).map(|(i, res)| (i, res.into()))
+    context("keyword", map(complete(take(8u8)), Keyword::from))(i)
 }
 
-/*fn value_with_optional_comment(i: &[u8]) -> IResult<&[u8], &[u8], VerboseError<&[u8]>> {
-    context("value", take(70u8))(i)
-        .pair(value, opt(comment))
-        .map(|(i, res)| (i, res))
-}*/
-
 //todo: parse the right value for each keyword
-fn value(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
+fn value(i: &[u8]) -> IResult<&[u8], (Value, Option<&[u8]>), VerboseError<&[u8]>> {
     context(
         "value",
-        alt((
-            character_string,
-            //continued_string,
-            logical,
-            integer,
-            real,
-            complex_integer,
-            complex_float,
-            date,
-        )),
+        take(72u8).and_then(alt((
+            all_consuming(pair(character_string, opt(value_comment))),
+            //all_consuming(continued_string),
+            all_consuming(pair(logical, opt(value_comment))),
+            all_consuming(pair(integer, opt(value_comment))),
+            all_consuming(pair(real, opt(value_comment))),
+            all_consuming(pair(complex_integer, opt(value_comment))),
+            all_consuming(pair(complex_float, opt(value_comment))),
+            all_consuming(pair(date, opt(value_comment))),
+        ))),
     )(i)
 }
 
@@ -84,7 +78,10 @@ fn logical(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
     context(
         "logical",
         map(
-            preceded(tag("= "), preceded(space0, alt((tag("T"), tag("F"))))),
+            preceded(
+                tag("= "),
+                preceded(space0, terminated(alt((tag("T"), tag("F"))), space0)),
+            ),
             |s: &[u8]| Value::Logical(s == b"T"),
         ),
     )(i)
@@ -155,11 +152,11 @@ fn date(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
     )(i)
 }
 
-fn comment(i: &[u8]) -> IResult<&[u8], &[u8], VerboseError<&[u8]>> {
+fn value_comment(i: &[u8]) -> IResult<&[u8], &[u8], VerboseError<&[u8]>> {
     context(
-        "keyword comment",
+        "value_comment",
         map(
-            preceded(tag("/"), take_while(is_ascii_text_char)),
+            preceded(space0, preceded(tag("/"), take_while(is_ascii_text_char))),
             |s: &[u8]| std::str::from_utf8(s).unwrap().trim_end().as_bytes(),
         ),
     )(i)
@@ -172,16 +169,13 @@ fn is_ascii_text_char(c: u8) -> bool {
 fn keyword_record(i: &[u8]) -> IResult<&[u8], KeywordRecord, VerboseError<&[u8]>> {
     context(
         "keyword_record",
-        map(
-            tuple((keyword, value, opt(preceded(space0, comment)))),
-            |(keyword, value, comment)| {
-                KeywordRecord::new(
-                    keyword,
-                    value,
-                    comment.map(|s| std::str::from_utf8(s).unwrap()),
-                )
-            },
-        ),
+        map(tuple((keyword, value)), |(keyword, value)| {
+            KeywordRecord::new(
+                keyword,
+                value.0,
+                value.1.map(|s| std::str::from_utf8(s).unwrap()),
+            )
+        }),
     )(i)
 }
 
@@ -193,6 +187,21 @@ mod tests {
     fn test_keyword() {
         assert_eq!(keyword(b"COMMENT "), Ok((&b""[..], Keyword::Comment)));
         assert_eq!(keyword(b"COMMENT-"), Ok((&b""[..], Keyword::Unknown)));
+    }
+
+    #[test]
+    fn test_value_with_optional_comment() {
+        assert_eq!(
+            value(b"=                    T / FITS STANDARD                                  "),
+            Ok((
+                &b""[..],
+                (Value::Logical(true), Some(&b" FITS STANDARD"[..]))
+            ))
+        );
+        assert_eq!(
+            value(b"=                    T                                                  "),
+            Ok((&b""[..], (Value::Logical(true), None)))
+        );
     }
 
     #[test]
@@ -318,7 +327,7 @@ mod tests {
 
     #[test]
     fn test_keyword_record() {
-        /* assert_eq!(
+        assert_eq!(
             keyword_record(
                 b"COMMENT     'This file is part of the EUVE Science Archive. It contains'        "
             ),
@@ -332,7 +341,7 @@ mod tests {
                     None
                 ))
             ))
-        );*/
+        );
 
         assert_eq!(
             keyword_record(
