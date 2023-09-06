@@ -44,9 +44,12 @@ fn character_string(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
     context(
         "character_string",
         map(
-            terminated(
-                many0(preceded(tag(b"'"), terminated(no_single_quote, tag(b"'")))),
+            preceded(
                 space0,
+                terminated(
+                    many0(preceded(tag(b"'"), terminated(no_single_quote, tag(b"'")))),
+                    space0,
+                ),
             ),
             |parts: Vec<&[u8]>| Value::CharacterString(u8vec_to_string(parts)),
         ),
@@ -87,14 +90,14 @@ fn logical(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
 fn integer(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
     context(
         "integer",
-        map(preceded(tag("= "), preceded(space0, i64)), Value::Integer),
+        map(preceded(space0, terminated(i64, space0)), Value::Integer),
     )(i)
 }
 
 fn real(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
     context(
         "real",
-        map(preceded(tag("= "), preceded(space0, double)), Value::Real),
+        map(preceded(space0, terminated(double, space0)), Value::Real),
     )(i)
 }
 
@@ -103,14 +106,14 @@ fn complex_integer(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
         "complex integer",
         map(
             preceded(
-                tag("= "),
-                preceded(
-                    space0,
+                space0,
+                terminated(
                     separated_pair(
                         preceded(tag("("), preceded(space0, i64)),
                         tag(","),
                         preceded(space0, terminated(i64, tag(")"))),
                     ),
+                    space0,
                 ),
             ),
             Value::ComplexInteger,
@@ -123,14 +126,14 @@ fn complex_float(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
         "complex integer",
         map(
             preceded(
-                tag("= "),
-                preceded(
-                    space0,
+                space0,
+                terminated(
                     separated_pair(
                         preceded(tag("("), double),
                         tag(","),
                         preceded(space0, terminated(double, tag(")"))),
                     ),
+                    space0,
                 ),
             ),
             Value::ComplexFloat,
@@ -143,7 +146,7 @@ fn date(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
     context(
         "date",
         map(
-            preceded(tag("= "), preceded(space0, take_while(is_ascii_text_char))),
+            preceded(space0, take_while(is_ascii_text_char)),
             |s: &[u8]| Value::Date(std::str::from_utf8(s).unwrap().trim_end().to_string()),
         ),
     )(i)
@@ -254,42 +257,82 @@ mod tests {
 
     #[test]
     fn test_integer() {
-        assert_eq!(integer(b"= +300"), Ok((&b""[..], Value::Integer(300))));
-        assert_eq!(integer(b"=   -300"), Ok((&b""[..], Value::Integer(-300))));
-        assert_eq!(integer(b"=  300"), Ok((&b""[..], Value::Integer(300))));
-        assert_eq!(integer(b"= 300"), Ok((&b""[..], Value::Integer(300))));
-        assert_ne!(integer(b"= +500"), Ok((&b""[..], Value::Integer(300))));
+        assert_eq!(
+            integer(b"+300                                                                  "),
+            Ok((&b""[..], Value::Integer(300)))
+        );
+        assert_eq!(
+            integer(b"  -300                                                                "),
+            Ok((&b""[..], Value::Integer(-300)))
+        );
+        assert_eq!(
+            integer(b" 300                                                                  "),
+            Ok((&b""[..], Value::Integer(300)))
+        );
+        assert_eq!(
+            integer(b"300                                                                   "),
+            Ok((&b""[..], Value::Integer(300)))
+        );
+        assert_ne!(
+            integer(b"+500                                                                  "),
+            Ok((&b""[..], Value::Integer(300)))
+        );
     }
 
     #[test]
     fn test_real() {
-        assert_eq!(real(b"= +300.1"), Ok((&b""[..], Value::Real(300.1))));
-        assert_eq!(real(b"= -300.1"), Ok((&b""[..], Value::Real(-300.1))));
-        assert_eq!(real(b"=  300.1"), Ok((&b""[..], Value::Real(300.1))));
-        assert_eq!(real(b"= 300.1"), Ok((&b""[..], Value::Real(300.1))));
-        assert_ne!(real(b"= +500.1"), Ok((&b""[..], Value::Real(300.1))));
+        assert_eq!(
+            real(b"+300.1                                                                "),
+            Ok((&b""[..], Value::Real(300.1)))
+        );
+        assert_eq!(
+            real(b"-300.1                                                                "),
+            Ok((&b""[..], Value::Real(-300.1)))
+        );
+        assert_eq!(
+            real(b" 300.1                                                                "),
+            Ok((&b""[..], Value::Real(300.1)))
+        );
+        assert_eq!(
+            real(b"300.1                                                                 "),
+            Ok((&b""[..], Value::Real(300.1)))
+        );
+        assert_ne!(
+            real(b"+500.1                                                                "),
+            Ok((&b""[..], Value::Real(300.1)))
+        );
     }
 
     #[test]
     fn test_complex_integer() {
         assert_eq!(
-            complex_integer(b"= ( 123, 45)"),
+            complex_integer(
+                b"( 123, 45)                                                            "
+            ),
             Ok((&b""[..], Value::ComplexInteger((123, 45))))
         );
         assert_eq!(
-            complex_integer(b"=   (123, 45)"),
+            complex_integer(
+                b"  (123, 45)                                                           "
+            ),
             Ok((&b""[..], Value::ComplexInteger((123, 45))))
         );
         assert_eq!(
-            complex_integer(b"= (-123,-45)"),
+            complex_integer(
+                b"(-123,-45)                                                            "
+            ),
             Ok((&b""[..], Value::ComplexInteger((-123, -45))))
         );
         assert_eq!(
-            complex_integer(b"= (+123, +45)"),
+            complex_integer(
+                b"(+123, +45)                                                           "
+            ),
             Ok((&b""[..], Value::ComplexInteger((123, 45))))
         );
         assert_ne!(
-            complex_integer(b"= (-500,-45)"),
+            complex_integer(
+                b"(-500,-45)                                                            "
+            ),
             Ok((&b""[..], Value::ComplexInteger((-123, -45))))
         );
     }
@@ -297,19 +340,27 @@ mod tests {
     #[test]
     fn test_complex_float() {
         assert_eq!(
-            complex_float(b"= (123.23, -45.7)"),
+            complex_float(
+                b"(123.23, -45.7)                                                       "
+            ),
             Ok((&b""[..], Value::ComplexFloat((123.23, -45.7))))
         );
         assert_eq!(
-            complex_float(b"=  (+123.23, 45.7)"),
+            complex_float(
+                b" (+123.23, 45.7)                                                      "
+            ),
             Ok((&b""[..], Value::ComplexFloat((123.23, 45.7))))
         );
         assert_eq!(
-            complex_float(b"= (-123.23, +45.7)"),
+            complex_float(
+                b"(-123.23, +45.7)                                                      "
+            ),
             Ok((&b""[..], Value::ComplexFloat((-123.23, 45.7))))
         );
         assert_ne!(
-            complex_float(b"= (500.23, -45.7)"),
+            complex_float(
+                b"(500.23, -45.7)                                                       "
+            ),
             Ok((&b""[..], Value::ComplexFloat((123.23, -45.7))))
         );
     }
@@ -317,23 +368,23 @@ mod tests {
     #[test]
     fn test_date() {
         assert_eq!(
-            date(b"= 0000-01-01T00:00:00"),
+            date(b"0000-01-01T00:00:00                                                   "),
             Ok((&b""[..], Value::Date("0000-01-01T00:00:00".to_string())))
         );
         assert_eq!(
-            date(b"=   9999-12-31T23:59:59"),
+            date(b"                                                   9999-12-31T23:59:59"),
             Ok((&b""[..], Value::Date("9999-12-31T23:59:59".to_string())))
         );
         assert_eq!(
-            date(b"= 99999-01-01T00:00:00"),
+            date(b"99999-01-01T00:00:00                                                  "),
             Ok((&b""[..], Value::Date("99999-01-01T00:00:00".to_string())))
         );
         assert_eq!(
-            date(b"= +99999-12-31T23:59:59"),
+            date(b"+99999-12-31T23:59:59                                                 "),
             Ok((&b""[..], Value::Date("+99999-12-31T23:59:59".to_string())))
         );
         assert_eq!(
-            date(b"= -04713-11-24T12:00:00"),
+            date(b"-04713-11-24T12:00:00                                                 "),
             Ok((&b""[..], Value::Date("-04713-11-24T12:00:00".to_string())))
         );
     }
