@@ -100,18 +100,20 @@ impl<'a> KeywordRecord<'a> {
 pub enum Value<'a> {
     /// An ASCII string 0x20 - 0x7E. FITS standard section 4.2.1.1
     CharacterString(String),
-    /// A multi-part string. FITS standard section 4.2.1.2
-    ContinuedString(Vec<&'a str>),
-    /// A logical constant or value `F` or `T`. FITS standard section 4.2.2
-    Logical(bool),
-    /// An signed integer. FITS standard section 4.2.3
-    Integer(i64),
-    /// Fixed format real floating point number. FITS standard section 4.2.4
-    Real(f64),
-    /// Complex integer with real and imaginary parts. FITS standard section 4.2.5
-    ComplexInteger((i64, i64)),
     /// Complex floating point number. FITS standard section 4.2.6
     ComplexFloat((f64, f64)),
+    /// Complex integer with real and imaginary parts. FITS standard section 4.2.5
+    ComplexInteger((i64, i64)),
+    /// A multi-part string. FITS standard section 4.2.1.2
+    ContinuedString(Vec<&'a str>),
     /// Date. ISO-8601 string. FITS standard section 4.2.7
     Date(String),
+    /// An signed integer. FITS standard section 4.2.3
+    Integer(i64),
+    /// A logical constant or value `F` or `T`. FITS standard section 4.2.2
+    Logical(bool),
+    /// Fixed format real floating point number. FITS standard section 4.2.4
+    Real(f64),
+    /// Unknown value - presented as 72 ASCII characters
+    Unknown(String),
 }
