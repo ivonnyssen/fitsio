@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Keyword {
     Simple,
     BitPix,
@@ -101,4 +101,17 @@ impl From<&[u8]> for Keyword {
             _ => Keyword::Unknown,
         }
     }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ValueType {
+    CharacterString,
+    ComplexFloat,
+    ComplexInteger,
+    ContinuedString,
+    Date,
+    Integer,
+    Logical,
+    Real,
+    Unknown,
 }

@@ -1,18 +1,19 @@
 use std::u8;
 
 use nom::{
-    branch::alt,
     bytes::complete::{tag, take, take_while},
     character::complete::space0,
-    combinator::{all_consuming, complete, map, opt},
+    combinator::{complete, map, opt},
     error::context,
     error::VerboseError,
-    sequence::{pair, preceded, tuple},
+    multi::many0,
+    sequence::{pair, preceded},
     IResult, Parser,
 };
 
 use crate::keywords::Keyword;
-use crate::types::{KeywordRecord, Value};
+use crate::keywords::ValueType;
+use crate::types::KeywordRecord;
 
 mod character_string;
 mod complex_float;
@@ -37,25 +38,6 @@ fn keyword(i: &[u8]) -> IResult<&[u8], Keyword, VerboseError<&[u8]>> {
     context("keyword", map(complete(take(8u8)), Keyword::from))(i)
 }
 
-fn value(i: &[u8]) -> IResult<&[u8], (Value, Option<&[u8]>), VerboseError<&[u8]>> {
-    context(
-        "value",
-        take(72u8).and_then(preceded(
-            alt((tag("= "), tag("  "))),
-            alt((
-                all_consuming(pair(character_string, opt(value_comment))),
-                //all_consuming(continued_string),
-                all_consuming(pair(logical, opt(value_comment))),
-                all_consuming(pair(integer, opt(value_comment))),
-                all_consuming(pair(real, opt(value_comment))),
-                all_consuming(pair(complex_integer, opt(value_comment))),
-                all_consuming(pair(complex_float, opt(value_comment))),
-                all_consuming(pair(date, opt(value_comment))),
-            )),
-        )),
-    )(i)
-}
-
 fn value_comment(i: &[u8]) -> IResult<&[u8], &[u8], VerboseError<&[u8]>> {
     context(
         "value_comment",
@@ -67,41 +49,74 @@ fn value_comment(i: &[u8]) -> IResult<&[u8], &[u8], VerboseError<&[u8]>> {
 }
 
 fn keyword_record(i: &[u8]) -> IResult<&[u8], KeywordRecord, VerboseError<&[u8]>> {
-    context(
-        "keyword_record",
-        map(tuple((keyword, value)), |(keyword, value)| {
-            KeywordRecord::new(
-                keyword,
-                value.0,
-                value.1.map(|s| std::str::from_utf8(s).unwrap()),
-            )
-        }),
-    )(i)
+    let (i, key) = keyword(i)?;
+    let (_, remainder) = take(72u8).parse(i)?;
+    match key {
+        Keyword::Simple => parse_value_and_comment(key, remainder, ValueType::Logical),
+        Keyword::Comment => parse_value_and_comment(key, remainder, ValueType::CharacterString),
+        _ => parse_value_and_comment(key, remainder, ValueType::Unknown),
+    }
+}
+
+fn parse_value_and_comment(
+    key: Keyword,
+    remainder: &[u8],
+    value_type: ValueType,
+) -> Result<(&[u8], KeywordRecord<'_>), nom::Err<VerboseError<&[u8]>>> {
+    match value_type {
+        ValueType::CharacterString => map(
+            pair(character_string, opt(value_comment)),
+            |(value, comment)| {
+                KeywordRecord::new(key, value, comment.map(|s| std::str::from_utf8(s).unwrap()))
+            },
+        )(remainder),
+        ValueType::ComplexFloat => map(
+            pair(complex_float, opt(value_comment)),
+            |(value, comment)| {
+                KeywordRecord::new(key, value, comment.map(|s| std::str::from_utf8(s).unwrap()))
+            },
+        )(remainder),
+        ValueType::ComplexInteger => map(
+            pair(complex_integer, opt(value_comment)),
+            |(value, comment)| {
+                KeywordRecord::new(key, value, comment.map(|s| std::str::from_utf8(s).unwrap()))
+            },
+        )(remainder),
+        ValueType::Date => map(pair(date, opt(value_comment)), |(value, comment)| {
+            KeywordRecord::new(key, value, comment.map(|s| std::str::from_utf8(s).unwrap()))
+        })(remainder),
+        ValueType::Integer => map(pair(integer, opt(value_comment)), |(value, comment)| {
+            KeywordRecord::new(key, value, comment.map(|s| std::str::from_utf8(s).unwrap()))
+        })(remainder),
+        ValueType::Logical => map(pair(logical, opt(value_comment)), |(value, comment)| {
+            KeywordRecord::new(key, value, comment.map(|s| std::str::from_utf8(s).unwrap()))
+        })(remainder),
+        ValueType::Real => map(pair(real, opt(value_comment)), |(value, comment)| {
+            KeywordRecord::new(key, value, comment.map(|s| std::str::from_utf8(s).unwrap()))
+        })(remainder),
+        ValueType::Unknown => todo!(),
+        ValueType::ContinuedString => map(
+            pair(continued_string, opt(value_comment)),
+            |(value, comment)| {
+                KeywordRecord::new(key, value, comment.map(|s| std::str::from_utf8(s).unwrap()))
+            },
+        )(remainder),
+    }
+}
+
+fn hdu(i: &[u8]) -> IResult<&[u8], Vec<KeywordRecord>, VerboseError<&[u8]>> {
+    context("hdu", many0(keyword_record))(i)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::Value;
 
     #[test]
     fn test_keyword() {
         assert_eq!(keyword(b"COMMENT "), Ok((&b""[..], Keyword::Comment)));
         assert_eq!(keyword(b"COMMENT-"), Ok((&b""[..], Keyword::Unknown)));
-    }
-
-    #[test]
-    fn test_value_with_optional_comment() {
-        assert_eq!(
-            value(b"=                    T / FITS STANDARD                                  "),
-            Ok((
-                &b""[..],
-                (Value::Logical(true), Some(&b" FITS STANDARD"[..]))
-            ))
-        );
-        assert_eq!(
-            value(b"=                    T                                                  "),
-            Ok((&b""[..], (Value::Logical(true), None)))
-        );
     }
 
     #[test]
@@ -133,6 +148,26 @@ mod tests {
                     Value::Logical(true),
                     Some(" FITS STANDARD")
                 ))
+            ))
+        );
+    }
+
+    fn test_hdu() {
+        assert_eq!(
+            hdu(
+                b"SIMPLE  =                    T / FITS STANDARD                                  COMMENT     'This file is part of the EUVE Science Archive. It contains'        "
+            ),
+            Ok((
+                &b""[..],
+                vec![KeywordRecord::new(
+                    Keyword::Simple,
+                    Value::Logical(true),
+                    Some(" FITS STANDARD")
+                ),KeywordRecord::new(
+                    Keyword::Comment,
+                    Value::CharacterString("This file is part of the EUVE Science Archive. It contains".to_string()),
+                    None
+                )]
             ))
         );
     }
