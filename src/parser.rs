@@ -104,7 +104,7 @@ fn parse_value_and_comment(
     }
 }
 
-fn hdu(i: &[u8]) -> IResult<&[u8], Vec<KeywordRecord>, VerboseError<&[u8]>> {
+fn header(i: &[u8]) -> IResult<&[u8], Vec<KeywordRecord>, VerboseError<&[u8]>> {
     context("hdu", many0(keyword_record))(i)
 }
 
@@ -152,9 +152,9 @@ mod tests {
         );
     }
 
-    fn test_hdu() {
+    fn test_header() {
         assert_eq!(
-            hdu(
+            header(
                 b"SIMPLE  =                    T / FITS STANDARD                                  COMMENT     'This file is part of the EUVE Science Archive. It contains'        "
             ),
             Ok((
