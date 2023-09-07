@@ -12,7 +12,6 @@ use nom::{
 };
 
 use crate::keywords::Keyword;
-use crate::keywords::ValueType;
 use crate::types::KeywordRecord;
 use crate::types::Value;
 
@@ -44,23 +43,25 @@ fn value_comment(i: &[u8]) -> IResult<&[u8], &str, VerboseError<&[u8]>> {
 fn keyword_record(i: &[u8]) -> IResult<&[u8], KeywordRecord, VerboseError<&[u8]>> {
     let (i, key) = keyword(i)?;
     match key {
-        Keyword::Simple => parse(i, key, logical),
-        Keyword::Comment => parse(i, key, character_string),
-        Keyword::BitPix => parse(i, key, integer),
+        Keyword::Simple => value_and_comment(i, key, logical),
+        Keyword::Comment => value_and_comment(i, key, character_string),
+        Keyword::BitPix => value_and_comment(i, key, integer),
         _ => map(take(72u8), |value: &[u8]| {
             KeywordRecord::new(
                 key,
-                Value::Unknown(std::str::from_utf8(value).unwrap().to_string()),
+                Value::Unknown(std::str::from_utf8(value).unwrap_or("").to_string()),
                 None,
             )
         })(i),
     }
 }
 
-fn parse(
+type ValueParser = fn(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>>;
+
+fn value_and_comment(
     i: &[u8],
     key: Keyword,
-    parser: fn(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>>,
+    parser: ValueParser,
 ) -> IResult<&[u8], KeywordRecord, VerboseError<&[u8]>> {
     map_parser(
         take(72u8),
@@ -88,7 +89,7 @@ mod tests {
     #[test]
     fn test_parse() {
         assert_eq!(
-            parse(
+            value_and_comment(
                 b"    'This file is part of the EUVE Science Archive. It contains'        ",
                 Keyword::Comment,
                 character_string
@@ -106,7 +107,7 @@ mod tests {
         );
 
         assert_eq!(
-            parse(
+            value_and_comment(
                 b"=                    T / FITS STANDARD                                  ",
                 Keyword::Simple,
                 logical
