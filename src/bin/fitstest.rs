@@ -1,23 +1,23 @@
 use std::env;
-//use std::fs::File;
+use std::fs::File;
+
+use fitsio::parse_headers;
 
 fn main() -> Result<(), std::io::Error> {
     let args: Vec<String> = env::args().collect();
-    let file_name = &args[1];
+    let mut file_name =
+        &String::from("/home/parallels/projects/fitsio/FITS-EXAMPLES/EUVEngc4151imgx.fits");
+    if args.len() < 2 {
+        println!("Usage: fitstest <filename>");
+    } else {
+        file_name = &args[1];
+    }
 
-    //create a fits file
-    /*    let fits_file = fits::FitsFile {
-            file_name: file_name.to_string(),
-            file_size: 0,
-            file_type: String::from(""),
-            file_data: Vec::new(),
-        };
-    */
-    //let file = File::open(file_name)?;
+    let file = File::open(file_name)?;
     //read the fits file
-    //fits::read_fits(&file);
+    let res = parse_headers(&file);
     //write the fits file
     //fits::write_fits(&file, &fits_file)
-    println!("{file_name}");
+    println!("{res:?}");
     Ok(())
 }
