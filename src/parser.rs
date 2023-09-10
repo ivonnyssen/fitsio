@@ -88,7 +88,13 @@ mod tests {
     #[test]
     fn test_keyword() {
         assert_eq!(keyword(b"COMMENT "), Ok((&b""[..], Keyword::Comment)));
-        assert_eq!(keyword(b"COMMENT-"), Ok((&b""[..], Keyword::Unknown)));
+        assert_eq!(
+            keyword(b"COMMENT-"),
+            Ok((
+                &b""[..],
+                Keyword::Unknown("COMMENT-".as_bytes().try_into().unwrap())
+            ))
+        );
     }
 
     #[test]

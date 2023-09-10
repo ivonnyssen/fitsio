@@ -59,7 +59,7 @@ pub enum Keyword {
     TZeron(u16),
     Telescop,
     Tfields,
-    Unknown,
+    Unknown([u8; 8]),
     Xtension,
     ZBitPix,
     ZBlocked,
@@ -91,13 +91,13 @@ pub enum Keyword {
 impl Keyword {
     pub fn new(prefix: &str, i: &[u8]) -> Self {
         let (_, number) = match prefix.len() > i.len() {
-            true => return Keyword::Unknown,
+            true => return Keyword::Unknown(i.try_into().unwrap()),
             false => i.split_at(prefix.len()),
         };
 
         match std::str::from_utf8(number).unwrap_or("").trim_end().parse() {
             Ok(n) => Self::combine(prefix, n),
-            Err(_) => Keyword::Unknown,
+            Err(_) => Keyword::Unknown(i.try_into().unwrap()),
         }
     }
 
@@ -126,7 +126,7 @@ impl Keyword {
             "ZNAME" => Keyword::ZNAMEi(n),
             "ZTILE" => Keyword::ZTilen(n),
             "ZVAL" => Keyword::ZVALi(n),
-            _ => Keyword::Unknown,
+            _ => Keyword::Unknown(prefix.as_bytes().try_into().unwrap()),
         }
     }
 }
@@ -219,7 +219,7 @@ impl From<&[u8]> for Keyword {
             b"ZTILE" => Keyword::new("ZTILE", i),
             b"ZVAL" => Keyword::new("ZVAL", i),
             b"ZHECKSUM" => Keyword::ZheckSum,
-            _ => Keyword::Unknown,
+            _ => Keyword::Unknown(i.try_into().unwrap()),
         }
     }
 }
@@ -249,8 +249,14 @@ mod test {
     fn test_keyword_new() {
         assert_eq!(Keyword::new("FZALG", b"FZALG1  "), Keyword::FZALGn(1));
         assert_eq!(Keyword::new("FZALG", b"FZALG999"), Keyword::FZALGn(999));
-        assert_eq!(Keyword::new("FZALG", b"FZALG   "), Keyword::Unknown);
-        assert_eq!(Keyword::new("FZALG", b"FZALG###"), Keyword::Unknown);
+        assert_eq!(
+            Keyword::new("FZALG", b"FZALG   "),
+            Keyword::Unknown(b"FZALG   ".as_bytes().try_into().unwrap())
+        );
+        assert_eq!(
+            Keyword::new("FZALG", b"FZALG###"),
+            Keyword::Unknown(b"FZALG###".as_bytes().try_into().unwrap())
+        );
     }
     #[test]
     fn test_all_special_keywords() {
