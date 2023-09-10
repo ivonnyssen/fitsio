@@ -46,6 +46,11 @@ fn keyword_record(i: &[u8]) -> IResult<&[u8], KeywordRecord, VerboseError<&[u8]>
         Keyword::Simple => value_and_comment(i, key, logical),
         Keyword::Comment => value_and_comment(i, key, character_string),
         Keyword::BitPix => value_and_comment(i, key, integer),
+        Keyword::NAxis => value_and_comment(i, key, integer),
+        Keyword::Extend => value_and_comment(i, key, logical),
+        Keyword::Date => value_and_comment(i, key, date),
+        Keyword::Origin => value_and_comment(i, key, character_string),
+        Keyword::Telescop => value_and_comment(i, key, character_string),
         _ => map(take(72u8), |value: &[u8]| {
             KeywordRecord::new(
                 key,
