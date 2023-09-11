@@ -37,7 +37,7 @@ pub fn keyword_record(i: &[u8]) -> IResult<&[u8], KeywordRecord, VerboseError<&[
         Keyword::DataSum => value_and_comment(i, key, character_string),
         Keyword::Date => value_and_comment(i, key, date),
         Keyword::DateObs => value_and_comment(i, key, date),
-
+        Keyword::Empty => value_and_comment(i, key, character_string), //todo: just read value like for unknown and refactor
         /*
         Blocked, // deprecated
         Empty,
