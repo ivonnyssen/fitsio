@@ -40,10 +40,28 @@ fn u8vec_to_string(v: Vec<&[u8]>) -> String {
     let mut it = v.iter().peekable();
     let mut acc = String::new();
     while let Some(part) = it.next() {
-        acc.push_str(std::str::from_utf8(part).unwrap());
+        acc.push_str(std::str::from_utf8(part).unwrap_or(""));
         match it.peek().is_some() {
             true => acc.push('\''),
             false => (),
+        }
+    }
+    acc
+}
+
+fn u8vec_to_string_eating_last_ampersand(v: Vec<&[u8]>) -> String {
+    let mut it = v.iter().peekable();
+    let mut acc = String::new();
+    while let Some(part) = it.next() {
+        acc.push_str(std::str::from_utf8(part).unwrap_or(""));
+        match it.peek().is_some() {
+            true => acc.push('\''),
+            false => match acc.ends_with('&') {
+                true => {
+                    _ = acc.pop();
+                }
+                false => (),
+            },
         }
     }
     acc
@@ -96,7 +114,24 @@ pub fn complex_integer(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
 }
 
 pub fn continued_string(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
-    todo!()
+    context(
+        "continued string",
+        map(
+            preceded(
+                alt((tag("= "), tag("  "))),
+                preceded(
+                    space0,
+                    terminated(
+                        many0(preceded(tag(b"'"), terminated(no_single_quote, tag(b"'")))),
+                        space0,
+                    ),
+                ),
+            ),
+            |parts: Vec<&[u8]>| {
+                Value::CharacterString(u8vec_to_string_eating_last_ampersand(parts))
+            },
+        ),
+    )(i)
 }
 
 pub fn date(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
@@ -108,7 +143,7 @@ pub fn date(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
                 tag("= "),
                 preceded(space0, take_while(super::is_allowed_ascii)),
             ),
-            |s: &[u8]| Value::Date(std::str::from_utf8(s).unwrap().trim_end().to_string()),
+            |s: &[u8]| Value::Date(std::str::from_utf8(s).unwrap_or("").trim_end().to_string()),
         ),
     )(i)
 }
@@ -172,6 +207,15 @@ mod tests {
             Ok((
                 &b""[..],
                 Value::CharacterString("String with single quote ' 123.45 , _ + - ".to_string())
+            ))
+        );
+        assert_eq!(
+            character_string(
+                b"= 'String with comment' / not returned in the string                    "
+            ),
+            Ok((
+                &b"/ not returned in the string                    "[..],
+                Value::CharacterString("String with comment".to_string())
             ))
         );
     }
@@ -239,7 +283,22 @@ mod tests {
     }
 
     #[test]
-    fn test_continued_string() {}
+    fn test_continued_string() {
+        assert_eq!(
+            continued_string(b"  ' over multiple keyword records.&'"),
+            Ok((
+                &b""[..],
+                Value::CharacterString(" over multiple keyword records.".to_string())
+            ))
+        );
+        assert_eq!(
+            continued_string(b"  '&' / The comment field for this"),
+            Ok((
+                &b"/ The comment field for this"[..],
+                Value::CharacterString("".to_string())
+            ))
+        );
+    }
 
     #[test]
     fn test_date() {

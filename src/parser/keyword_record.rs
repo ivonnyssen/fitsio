@@ -23,12 +23,98 @@ fn keyword(i: &[u8]) -> IResult<&[u8], Keyword, VerboseError<&[u8]>> {
 pub fn keyword_record(i: &[u8]) -> IResult<&[u8], KeywordRecord, VerboseError<&[u8]>> {
     let (i, key) = keyword(i)?;
     match key {
-        Keyword::Simple => value_and_comment(i, key, logical),
-        Keyword::Comment => value_and_comment(i, key, character_string),
+        Keyword::Author => value_and_comment(i, key, character_string),
+        Keyword::BScale => value_and_comment(i, key, real),
+        Keyword::BUnit => value_and_comment(i, key, character_string),
+        Keyword::BZero => value_and_comment(i, key, real),
         Keyword::BitPix => value_and_comment(i, key, integer),
+        Keyword::Blank => value_and_comment(i, key, integer),
+        Keyword::CheckSum => value_and_comment(i, key, character_string),
+        Keyword::Comment => value_and_comment(i, key, character_string),
+        Keyword::Continue => value_and_comment(i, key, continued_string),
+        Keyword::DataMax => value_and_comment(i, key, real),
+        Keyword::DataMin => value_and_comment(i, key, real),
+        Keyword::DataSum => value_and_comment(i, key, character_string),
+        Keyword::Date => value_and_comment(i, key, date),
+        Keyword::DateObs => value_and_comment(i, key, date),
+
+        /*
+        Blocked, // deprecated
+        Empty,
+        End,
+        Epoch,
+        Equinox,
+        ExtLevel,
+        ExtName,
+        ExtVer,
+        Extend,
+        FZALGn(u16),
+        FZAlgor,
+        FZTileLn,
+        GCount,
+        Groups,
+        History,
+        Inherit,
+        Instrume,
+        NAxis,
+        NAxisn(u16),
+        Object,
+        Obs,
+        Observer,
+        Origin,
+        PCount,
+        PScaln(u16),
+        PTypen(u16),
+        PZeron(u16),
+        Referenc,
+        Simple,
+        TBcoln(u16),
+        TDMaxn(u16),
+        TDMinn(u16),
+        TDimn(u16),
+        TDispn(u16),
+        TFormn(u16),
+        THeap,
+        TLMaxn(u16),
+        TLMinn(u16),
+        TNulln(u16),
+        TScaln(u16),
+        TTypen(u16),
+        TUnitn(u16),
+        TZeron(u16),
+        Telescop,
+        Tfields,
+        Unknown([u8; 8]),
+        Xtension,
+        ZBitPix,
+        ZBlocked,
+        ZCTypn(u16),
+        ZCmpType,
+        ZDataSum,
+        ZDither0,
+        ZExtend,
+        ZFormn(u16),
+        ZGCount,
+        ZImage,
+        ZMaskCmp,
+        ZNAMEi(u16),
+        ZNaxis,
+        ZNaxis1,
+        ZNaxis2,
+        ZPCount,
+        ZQuantiz,
+        ZSimple,
+        ZTHeap,
+        ZTable,
+        ZTension,
+        ZTileLen,
+        ZTilen(u16),
+        ZVALi(u16),
+        ZheckSum,
+             */
+        Keyword::Simple => value_and_comment(i, key, logical),
         Keyword::NAxis => value_and_comment(i, key, integer),
         Keyword::Extend => value_and_comment(i, key, logical),
-        Keyword::Date => value_and_comment(i, key, date),
         Keyword::Origin => value_and_comment(i, key, character_string),
         Keyword::Telescop => value_and_comment(i, key, character_string),
         _ => map(take(72u8), |value: &[u8]| {
@@ -41,7 +127,7 @@ pub fn keyword_record(i: &[u8]) -> IResult<&[u8], KeywordRecord, VerboseError<&[
     }
 }
 
-fn value_comment(i: &[u8]) -> IResult<&[u8], &str, VerboseError<&[u8]>> {
+fn comment(i: &[u8]) -> IResult<&[u8], &str, VerboseError<&[u8]>> {
     context(
         "value_comment",
         map(
@@ -63,7 +149,7 @@ fn value_and_comment(
 ) -> IResult<&[u8], KeywordRecord, VerboseError<&[u8]>> {
     map_parser(
         take(72u8),
-        map(pair(parser, opt(value_comment)), |(value, comment)| {
+        map(pair(parser, opt(comment)), |(value, comment)| {
             KeywordRecord::new(key, value, comment)
         }),
     )(i)
