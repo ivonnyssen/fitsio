@@ -91,13 +91,25 @@ pub enum Keyword {
 impl Keyword {
     pub fn new(prefix: &str, i: &[u8]) -> Self {
         let (_, number) = match prefix.len() > i.len() {
-            true => return Keyword::Unknown(i.try_into().unwrap()),
+            true => {
+                return Keyword::Unknown({
+                    match i.try_into() {
+                        Ok(i) => i,
+                        Err(_) => return Keyword::Unknown(*b"KW ERROR"),
+                    }
+                })
+            }
             false => i.split_at(prefix.len()),
         };
 
         match std::str::from_utf8(number).unwrap_or("").trim_end().parse() {
             Ok(n) => Self::combine(prefix, n),
-            Err(_) => Keyword::Unknown(i.try_into().unwrap()),
+            Err(_) => Keyword::Unknown({
+                match i.try_into() {
+                    Ok(i) => i,
+                    Err(_) => return Keyword::Unknown(*b"KW ERROR"),
+                }
+            }),
         }
     }
 
@@ -126,7 +138,12 @@ impl Keyword {
             "ZNAME" => Keyword::ZNAMEi(n),
             "ZTILE" => Keyword::ZTilen(n),
             "ZVAL" => Keyword::ZVALi(n),
-            _ => Keyword::Unknown(prefix.as_bytes().try_into().unwrap()),
+            _ => Keyword::Unknown({
+                match prefix.as_bytes().try_into() {
+                    Ok(i) => i,
+                    Err(_) => return Keyword::Unknown(*b"KW ERROR"),
+                }
+            }),
         }
     }
 }
@@ -219,7 +236,12 @@ impl From<&[u8]> for Keyword {
             b"ZTILE" => Keyword::new("ZTILE", i),
             b"ZVAL" => Keyword::new("ZVAL", i),
             b"ZHECKSUM" => Keyword::ZheckSum,
-            _ => Keyword::Unknown(i.try_into().unwrap()),
+            _ => Keyword::Unknown({
+                match i.try_into() {
+                    Ok(i) => i,
+                    Err(_) => return Keyword::Unknown(*b"KW ERROR"),
+                }
+            }),
         }
     }
 }
@@ -256,6 +278,10 @@ mod test {
         assert_eq!(
             Keyword::new("FZALG", b"FZALG###"),
             Keyword::Unknown(b"FZALG###".as_bytes().try_into().unwrap())
+        );
+        assert_eq!(
+            Keyword::new("FZALG", b"FZA"),
+            Keyword::Unknown(b"KW ERROR".as_bytes().try_into().unwrap())
         );
     }
     #[test]

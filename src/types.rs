@@ -1,4 +1,4 @@
-use super::keywords;
+pub mod keyword;
 
 #[derive(PartialEq, Debug)]
 pub struct Fits<'a> {
@@ -68,13 +68,13 @@ impl<'a> Header<'a> {
 /// keyword, the corresponding value and an optional comment.
 #[derive(PartialEq, Debug)]
 pub struct KeywordRecord<'a> {
-    keyword: keywords::Keyword,
+    keyword: keyword::Keyword,
     value: Value<'a>,
     comment: Option<&'a str>,
 }
 
 impl<'a> KeywordRecord<'a> {
-    pub fn new(keyword: keywords::Keyword, value: Value<'a>, comment: Option<&'a str>) -> Self {
+    pub fn new(keyword: keyword::Keyword, value: Value<'a>, comment: Option<&'a str>) -> Self {
         Self {
             keyword,
             value,
@@ -82,7 +82,7 @@ impl<'a> KeywordRecord<'a> {
         }
     }
 
-    pub fn keyword(&self) -> &keywords::Keyword {
+    pub fn keyword(&self) -> &keyword::Keyword {
         &self.keyword
     }
 
