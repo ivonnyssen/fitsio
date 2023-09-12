@@ -1,3 +1,5 @@
+use tracing::error;
+
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Keyword {
     Author,
@@ -95,7 +97,10 @@ impl Keyword {
                 return Keyword::Unknown({
                     match i.try_into() {
                         Ok(i) => i,
-                        Err(_) => return Keyword::Unknown(*b"KW ERROR"),
+                        Err(e) => {
+                            error!("Keyword::from failed to convert {:?} error: {:?}", i, e);
+                            return Keyword::Unknown(*b"KW ERROR");
+                        }
                     }
                 })
             }
@@ -107,7 +112,10 @@ impl Keyword {
             Err(_) => Keyword::Unknown({
                 match i.try_into() {
                     Ok(i) => i,
-                    Err(_) => return Keyword::Unknown(*b"KW ERROR"),
+                    Err(e) => {
+                        error!("Keyword::from failed to convert {:?} error: {:?}", i, e);
+                        return Keyword::Unknown(*b"KW ERROR");
+                    }
                 }
             }),
         }
@@ -141,7 +149,10 @@ impl Keyword {
             _ => Keyword::Unknown({
                 match prefix.as_bytes().try_into() {
                     Ok(i) => i,
-                    Err(_) => return Keyword::Unknown(*b"KW ERROR"),
+                    Err(e) => {
+                        error!("Keyword::from failed to convert error: {:?}", e);
+                        return Keyword::Unknown(*b"KW ERROR");
+                    }
                 }
             }),
         }
@@ -239,7 +250,10 @@ impl From<&[u8]> for Keyword {
             _ => Keyword::Unknown({
                 match i.try_into() {
                     Ok(i) => i,
-                    Err(_) => return Keyword::Unknown(*b"KW ERROR"),
+                    Err(e) => {
+                        error!("Keyword::from failed to convert {:?} error: {:?}", i, e);
+                        return Keyword::Unknown(*b"KW ERROR");
+                    }
                 }
             }),
         }

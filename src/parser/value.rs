@@ -2,16 +2,19 @@ use crate::types::Value;
 
 use nom::{
     branch::alt,
-    bytes::complete::{tag, take_while},
-    character::complete::{i64, space0},
-    combinator::map,
+    bytes::complete::{tag, take, take_while},
+    character::complete::{digit1, i64, one_of, space0},
+    combinator::{map, opt, recognize},
     error::context,
     error::VerboseError,
     multi::many0,
     number::complete::double,
-    sequence::{preceded, separated_pair, terminated},
+    sequence::{pair, preceded, separated_pair, terminated, tuple},
     IResult,
 };
+use time::macros::format_description;
+use time::PrimitiveDateTime;
+use tracing::{error, trace};
 
 pub fn character_string(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
     context(
@@ -134,6 +137,10 @@ pub fn continued_string(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> 
     )(i)
 }
 
+const DATE_FORMAT: &[time::format_description::FormatItem<'_>] = format_description!(
+    version = 2,
+    "[year]-[month]-[day][ optional [T[hour]:[minute]:[second][ optional [.[subsecond]]]]]"
+);
 pub fn date(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
     //CCYY-MM-DD[Thh:mm:ss[.s...]]
     context(
@@ -141,9 +148,36 @@ pub fn date(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
         map(
             preceded(
                 tag("= "),
-                preceded(space0, take_while(super::is_allowed_ascii)),
+                preceded(
+                    space0,
+                    terminated(
+                        recognize(tuple((
+                            opt(one_of("+-")),
+                            digit1,
+                            tag("-"),
+                            digit1,
+                            tag("-"),
+                            digit1,
+                            opt(tuple((
+                                tag("T"),
+                                digit1,
+                                tag(":"),
+                                digit1,
+                                tag(":"),
+                                digit1,
+                                opt(pair(tag("."), digit1)),
+                            ))),
+                        ))),
+                        space0,
+                    ),
+                ),
             ),
-            |s: &[u8]| Value::Date(std::str::from_utf8(s).unwrap_or("").trim_end().to_string()),
+            |date| {
+                let date = std::str::from_utf8(date).unwrap_or("");
+                let date = PrimitiveDateTime::parse(date, &DATE_FORMAT)
+                    .unwrap_or(time::PrimitiveDateTime::MIN);
+                Value::Date(date)
+            },
         ),
     )(i)
 }
@@ -181,6 +215,22 @@ pub fn real(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
             preceded(tag("= "), preceded(space0, terminated(double, space0))),
             Value::Real,
         ),
+    )(i)
+}
+
+pub fn unknown(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
+    context(
+        "unknown",
+        map(take(72u8), |value: &[u8]| {
+            trace!("value: {:?}", value);
+            match std::str::from_utf8(value) {
+                Ok(res) => Value::Unknown(res.to_string()),
+                Err(err) => {
+                    error!("error parsing value: {:?}", err);
+                    Value::Unknown(String::from(""))
+                }
+            }
+        }),
     )(i)
 }
 
@@ -304,23 +354,44 @@ mod tests {
     fn test_date() {
         assert_eq!(
             date(b"= 0000-01-01T00:00:00                                                   "),
-            Ok((&b""[..], Value::Date("0000-01-01T00:00:00".to_string())))
+            Ok((
+                &b""[..],
+                Value::Date(PrimitiveDateTime::parse("0000-01-01T00:00:00", &DATE_FORMAT).unwrap())
+            ))
         );
         assert_eq!(
             date(b"=                                                    9999-12-31T23:59:59"),
-            Ok((&b""[..], Value::Date("9999-12-31T23:59:59".to_string())))
+            Ok((
+                &b""[..],
+                Value::Date(PrimitiveDateTime::parse("9999-12-31T23:59:59", &DATE_FORMAT).unwrap())
+            ))
         );
         assert_eq!(
-            date(b"= 99999-01-01T00:00:00                                                  "),
-            Ok((&b""[..], Value::Date("99999-01-01T00:00:00".to_string())))
+            date(b"= +99999-01-01T00:00:00                                                 "),
+            Ok((
+                &b""[..],
+                Value::Date(
+                    PrimitiveDateTime::parse("+99999-01-01T00:00:00", &DATE_FORMAT).unwrap()
+                )
+            ))
         );
         assert_eq!(
             date(b"= +99999-12-31T23:59:59                                                 "),
-            Ok((&b""[..], Value::Date("+99999-12-31T23:59:59".to_string())))
+            Ok((
+                &b""[..],
+                Value::Date(
+                    PrimitiveDateTime::parse("+99999-12-31T23:59:59", &DATE_FORMAT).unwrap()
+                )
+            ))
         );
         assert_eq!(
             date(b"= -04713-11-24T12:00:00                                                 "),
-            Ok((&b""[..], Value::Date("-04713-11-24T12:00:00".to_string())))
+            Ok((
+                &b""[..],
+                Value::Date(
+                    PrimitiveDateTime::parse("-04713-11-24T12:00:00", &DATE_FORMAT).unwrap()
+                )
+            ))
         );
     }
 
@@ -374,6 +445,7 @@ mod tests {
             ))
         );
     }
+
     #[test]
     fn test_real() {
         assert_eq!(
@@ -385,8 +457,11 @@ mod tests {
             Ok((&b""[..], Value::Real(-300.1)))
         );
         assert_eq!(
-            real(b"=  300.1                                                                "),
-            Ok((&b""[..], Value::Real(300.1)))
+            real(b"=                1.0E0 / Scale factor for pixel values                  "),
+            Ok((
+                &b"/ Scale factor for pixel values                  "[..],
+                Value::Real(1.0)
+            ))
         );
         assert_eq!(
             real(b"= 300.1                                                                 "),
@@ -396,5 +471,20 @@ mod tests {
             real(b"= +500.1                                                                "),
             Ok((&b""[..], Value::Real(300.1)))
         );
+    }
+
+    #[test]
+    fn test_unknown() {
+        assert_eq!(
+            unknown(b"XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"),
+            Ok((
+                &b""[..],
+                Value::Unknown(
+                    "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                        .to_string()
+                )
+            ))
+        );
+        assert!(unknown(b"").is_err());
     }
 }

@@ -1,135 +1,57 @@
 use nom::{
+    branch::alt,
     bytes::complete::{tag, take, take_while},
     character::complete::space0,
-    combinator::{complete, map, map_parser, opt},
+    combinator::{all_consuming, complete, map, map_parser, opt, success},
     error::{context, VerboseError},
     sequence::{pair, preceded},
     IResult,
 };
 
+use tracing::trace;
+
 use crate::parser::value::{
     character_string, complex_float, complex_integer, continued_string, date, integer, logical,
-    real,
+    real, unknown,
 };
 
 use crate::types::keyword::Keyword;
 use crate::types::KeywordRecord;
-use crate::types::Value;
 
 fn keyword(i: &[u8]) -> IResult<&[u8], Keyword, VerboseError<&[u8]>> {
     context("keyword", map(complete(take(8u8)), Keyword::from))(i)
 }
 
 pub fn keyword_record(i: &[u8]) -> IResult<&[u8], KeywordRecord, VerboseError<&[u8]>> {
-    let (i, key) = keyword(i)?;
-    match key {
-        Keyword::Author => value_and_comment(i, key, character_string),
-        Keyword::BScale => value_and_comment(i, key, real),
-        Keyword::BUnit => value_and_comment(i, key, character_string),
-        Keyword::BZero => value_and_comment(i, key, real),
-        Keyword::BitPix => value_and_comment(i, key, integer),
-        Keyword::Blank => value_and_comment(i, key, integer),
-        Keyword::CheckSum => value_and_comment(i, key, character_string),
-        Keyword::Comment => value_and_comment(i, key, character_string),
-        Keyword::Continue => value_and_comment(i, key, continued_string),
-        Keyword::DataMax => value_and_comment(i, key, real),
-        Keyword::DataMin => value_and_comment(i, key, real),
-        Keyword::DataSum => value_and_comment(i, key, character_string),
-        Keyword::Date => value_and_comment(i, key, date),
-        Keyword::DateObs => value_and_comment(i, key, date),
-        Keyword::Empty => value_and_comment(i, key, character_string), //todo: just read value like for unknown and refactor
-        /*
-        Blocked, // deprecated
-        Empty,
-        End,
-        Epoch,
-        Equinox,
-        ExtLevel,
-        ExtName,
-        ExtVer,
-        Extend,
-        FZALGn(u16),
-        FZAlgor,
-        FZTileLn,
-        GCount,
-        Groups,
-        History,
-        Inherit,
-        Instrume,
-        NAxis,
-        NAxisn(u16),
-        Object,
-        Obs,
-        Observer,
-        Origin,
-        PCount,
-        PScaln(u16),
-        PTypen(u16),
-        PZeron(u16),
-        Referenc,
-        Simple,
-        TBcoln(u16),
-        TDMaxn(u16),
-        TDMinn(u16),
-        TDimn(u16),
-        TDispn(u16),
-        TFormn(u16),
-        THeap,
-        TLMaxn(u16),
-        TLMinn(u16),
-        TNulln(u16),
-        TScaln(u16),
-        TTypen(u16),
-        TUnitn(u16),
-        TZeron(u16),
-        Telescop,
-        Tfields,
-        Unknown([u8; 8]),
-        Xtension,
-        ZBitPix,
-        ZBlocked,
-        ZCTypn(u16),
-        ZCmpType,
-        ZDataSum,
-        ZDither0,
-        ZExtend,
-        ZFormn(u16),
-        ZGCount,
-        ZImage,
-        ZMaskCmp,
-        ZNAMEi(u16),
-        ZNaxis,
-        ZNaxis1,
-        ZNaxis2,
-        ZPCount,
-        ZQuantiz,
-        ZSimple,
-        ZTHeap,
-        ZTable,
-        ZTension,
-        ZTileLen,
-        ZTilen(u16),
-        ZVALi(u16),
-        ZheckSum,
-             */
-        Keyword::Simple => value_and_comment(i, key, logical),
-        Keyword::NAxis => value_and_comment(i, key, integer),
-        Keyword::Extend => value_and_comment(i, key, logical),
-        Keyword::Origin => value_and_comment(i, key, character_string),
-        Keyword::Telescop => value_and_comment(i, key, character_string),
-        _ => map(take(72u8), |value: &[u8]| {
-            KeywordRecord::new(
-                key,
-                Value::Unknown(std::str::from_utf8(value).unwrap_or("").to_string()),
-                None,
-            )
-        })(i),
-    }
+    map_parser(
+        take(80u8),
+        map(
+            pair(
+                keyword,
+                alt((
+                    all_consuming(pair(character_string, opt(comment))),
+                    all_consuming(pair(complex_float, opt(comment))),
+                    all_consuming(pair(complex_integer, opt(comment))),
+                    all_consuming(pair(continued_string, opt(comment))),
+                    all_consuming(pair(date, opt(comment))),
+                    all_consuming(pair(integer, opt(comment))),
+                    all_consuming(pair(logical, opt(comment))),
+                    all_consuming(pair(real, opt(comment))),
+                    all_consuming(pair(unknown, success(None))),
+                )),
+            ),
+            |(key, (value, comment))| {
+                let record = KeywordRecord::new(key, value, comment);
+                trace!("keyword_record: {:?}", record);
+                record
+            },
+        ),
+    )(i)
 }
 
 fn comment(i: &[u8]) -> IResult<&[u8], &str, VerboseError<&[u8]>> {
     context(
-        "value_comment",
+        "comment",
         map(
             preceded(
                 space0,
@@ -140,24 +62,10 @@ fn comment(i: &[u8]) -> IResult<&[u8], &str, VerboseError<&[u8]>> {
     )(i)
 }
 
-type ValueParser = fn(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>>;
-
-fn value_and_comment(
-    i: &[u8],
-    key: Keyword,
-    parser: ValueParser,
-) -> IResult<&[u8], KeywordRecord, VerboseError<&[u8]>> {
-    map_parser(
-        take(72u8),
-        map(pair(parser, opt(comment)), |(value, comment)| {
-            KeywordRecord::new(key, value, comment)
-        }),
-    )(i)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::{keyword::Keyword, KeywordRecord, Value};
 
     #[test]
     fn test_keyword() {
@@ -202,40 +110,16 @@ mod tests {
                 ))
             ))
         );
-    }
-
-    #[test]
-    fn test_value_and_comment() {
         assert_eq!(
-            value_and_comment(
-                b"    'This file is part of the EUVE Science Archive. It contains'        ",
-                Keyword::Comment,
-                character_string
+            keyword_record(
+                b"BSCALE  =                1.0E0 / Scale factor for pixel values                  "
             ),
             Ok((
                 &b""[..],
                 (KeywordRecord::new(
-                    Keyword::Comment,
-                    Value::CharacterString(
-                        "This file is part of the EUVE Science Archive. It contains".to_string()
-                    ),
-                    None
-                ))
-            ))
-        );
-
-        assert_eq!(
-            value_and_comment(
-                b"=                    T / FITS STANDARD                                  ",
-                Keyword::Simple,
-                logical
-            ),
-            Ok((
-                &b""[..],
-                (KeywordRecord::new(
-                    Keyword::Simple,
-                    Value::Logical(true),
-                    Some(" FITS STANDARD")
+                    Keyword::BScale,
+                    Value::Real(1.0),
+                    Some(" Scale factor for pixel values")
                 ))
             ))
         );

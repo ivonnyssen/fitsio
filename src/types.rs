@@ -1,3 +1,5 @@
+use time::PrimitiveDateTime;
+
 pub mod keyword;
 
 #[derive(PartialEq, Debug)]
@@ -107,7 +109,7 @@ pub enum Value<'a> {
     /// A multi-part string. FITS standard section 4.2.1.2
     ContinuedString(Vec<&'a str>),
     /// Date. ISO-8601 string. FITS standard section 4.2.7
-    Date(String),
+    Date(PrimitiveDateTime),
     /// An signed integer. FITS standard section 4.2.3
     Integer(i64),
     /// A logical constant or value `F` or `T`. FITS standard section 4.2.2
