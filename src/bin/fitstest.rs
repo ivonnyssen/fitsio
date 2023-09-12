@@ -1,7 +1,7 @@
 use fitsio::parse_headers;
 use std::env;
 use std::fs::File;
-use tracing::{error, Level};
+use tracing::{error, instrument, Level};
 use tracing_subscriber::FmtSubscriber;
 
 fn main() -> Result<(), std::io::Error> {
@@ -12,19 +12,9 @@ fn main() -> Result<(), std::io::Error> {
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-    let default_filename =
-        String::from("/home/parallels/projects/fitsio/FITS-EXAMPLES/EUVEngc4151imgx.fits");
     let args: Vec<String> = env::args().collect();
-    let file_name = match args.len() > 1 {
-        true => &args[1],
-        false => {
-            error!("Usage: fitstest <filename>");
-            println!("Usage: fitstest <filename>");
-            &default_filename
-        }
-    };
 
-    let file = File::open(file_name)?;
+    let file = open_file(args)?;
 
     //read the fits file
     let _ = parse_headers(&file);
@@ -33,4 +23,22 @@ fn main() -> Result<(), std::io::Error> {
     //println!("{res:?}");
 
     Ok(())
+}
+
+#[instrument]
+fn open_file(args: Vec<String>) -> std::result::Result<std::fs::File, std::io::Error> {
+    let default_filename =
+        String::from("/home/parallels/projects/fitsio/FITS-EXAMPLES/EUVEngc4151imgx.fits");
+    let file_name = match args.len() > 1 {
+        true => &args[1],
+        false => {
+            error!(
+                "No filename provided. Using default filename: {}.",
+                default_filename
+            );
+            println!("Usage: fitstest <filename>");
+            &default_filename
+        }
+    };
+    File::open(file_name)
 }

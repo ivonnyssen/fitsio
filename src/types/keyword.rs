@@ -1,6 +1,6 @@
 use std::fmt;
 
-use tracing::error;
+use tracing::{error, instrument};
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum Keyword {
@@ -93,6 +93,7 @@ pub enum Keyword {
 }
 
 impl Keyword {
+    #[instrument]
     pub fn new(prefix: &str, i: &[u8]) -> Self {
         let (_, number) = match prefix.len() > i.len() {
             true => {
@@ -162,6 +163,7 @@ impl Keyword {
 }
 
 impl From<&[u8]> for Keyword {
+    #[instrument]
     fn from(i: &[u8]) -> Self {
         match i {
             b"        " => Keyword::Empty,

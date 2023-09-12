@@ -14,7 +14,7 @@ use nom::{
 };
 use time::macros::format_description;
 use time::PrimitiveDateTime;
-use tracing::error;
+use tracing::{error, instrument};
 
 pub fn character_string(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
     context(
@@ -217,7 +217,7 @@ pub fn real(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
         ),
     )(i)
 }
-
+#[instrument]
 pub fn unknown(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
     context(
         "unknown",
