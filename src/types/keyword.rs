@@ -1,3 +1,5 @@
+use std::fmt;
+
 use tracing::error;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -260,9 +262,15 @@ impl From<&[u8]> for Keyword {
     }
 }
 
-pub enum ParseKeywordError {
-    NotANumber,
+impl fmt::Display for Keyword {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Keyword::Unknown(s) => write!(f, "Unknown({})", std::str::from_utf8(s).unwrap_or("")),
+            _ => write!(f, "{:?}", self),
+        }
+    }
 }
+
 #[derive(Debug, PartialEq)]
 pub enum ValueType {
     CharacterString,
@@ -394,5 +402,14 @@ mod test {
         for (input, expected) in keywords {
             assert_eq!(Keyword::from(input.as_bytes()), expected);
         }
+    }
+
+    #[test]
+    fn test_keyword_display() {
+        assert_eq!(format!("{}", Keyword::Author), "Author");
+        assert_eq!(
+            format!("{}", Keyword::Unknown(*b"CREATOR ")),
+            "Unknown(CREATOR )"
+        );
     }
 }

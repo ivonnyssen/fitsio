@@ -14,7 +14,7 @@ use nom::{
 };
 use time::macros::format_description;
 use time::PrimitiveDateTime;
-use tracing::{error, trace};
+use tracing::error;
 
 pub fn character_string(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
     context(
@@ -222,7 +222,6 @@ pub fn unknown(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
     context(
         "unknown",
         map(take(72u8), |value: &[u8]| {
-            trace!("value: {:?}", value);
             match std::str::from_utf8(value) {
                 Ok(res) => Value::Unknown(res.to_string()),
                 Err(err) => {

@@ -1,3 +1,5 @@
+use std::fmt;
+
 use time::PrimitiveDateTime;
 
 pub mod keyword;
@@ -75,6 +77,15 @@ pub struct KeywordRecord<'a> {
     comment: Option<&'a str>,
 }
 
+impl fmt::Display for KeywordRecord<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{} = {}", self.keyword, self.value)?;
+        if let Some(comment) = self.comment {
+            write!(f, " / {}", comment)?;
+        }
+        Ok(())
+    }
+}
 impl<'a> KeywordRecord<'a> {
     pub fn new(keyword: keyword::Keyword, value: Value<'a>, comment: Option<&'a str>) -> Self {
         Self {
@@ -118,4 +129,49 @@ pub enum Value<'a> {
     Real(f64),
     /// Unknown value - presented as 72 ASCII characters
     Unknown(String),
+}
+
+impl fmt::Display for Value<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Value::CharacterString(s) => write!(f, "'{}'", s),
+            Value::ComplexFloat((r, i)) => write!(f, "{} + {}i", r, i),
+            Value::ComplexInteger((r, i)) => write!(f, "{} + {}i", r, i),
+            Value::ContinuedString(s) => write!(f, "{:#?}", s),
+            Value::Date(d) => write!(f, "{}", d),
+            Value::Integer(i) => write!(f, "{}", i),
+            Value::Logical(b) => write!(f, "{}", b),
+            Value::Real(r) => write!(f, "{}", r),
+            Value::Unknown(s) => write!(f, "{}", s),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use time::macros::datetime;
+
+    use super::*;
+
+    #[test]
+    fn test_display_for_value() {
+        assert_eq!(
+            format!("{}", Value::CharacterString("hello".to_string())),
+            "'hello'"
+        );
+        assert_eq!(format!("{}", Value::ComplexFloat((1.0, 2.0))), "1 + 2i");
+        assert_eq!(format!("{}", Value::ComplexInteger((1, 2))), "1 + 2i");
+        assert_eq!(
+            format!("{}", Value::ContinuedString(vec!["hello", "world"])),
+            "[\n    \"hello\",\n    \"world\",\n]"
+        );
+        assert_eq!(
+            format!("{}", Value::Date(datetime!(2019-01-01 0:00))),
+            "2019-01-01 0:00:00.0"
+        );
+        assert_eq!(format!("{}", Value::Integer(1)), "1");
+        assert_eq!(format!("{}", Value::Logical(true)), "true");
+        assert_eq!(format!("{}", Value::Real(1.0)), "1");
+        assert_eq!(format!("{}", Value::Unknown("hello".to_string())), "hello");
+    }
 }

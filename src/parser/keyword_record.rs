@@ -42,7 +42,7 @@ pub fn keyword_record(i: &[u8]) -> IResult<&[u8], KeywordRecord, VerboseError<&[
             ),
             |(key, (value, comment))| {
                 let record = KeywordRecord::new(key, value, comment);
-                trace!("keyword_record: {:?}", record);
+                trace!("keyword_record: {}", record);
                 record
             },
         ),
@@ -122,6 +122,25 @@ mod tests {
                     Some(" Scale factor for pixel values")
                 ))
             ))
+        );
+    }
+
+    #[test]
+    fn test_keyword_record_display() {
+        let record = KeywordRecord::new(
+            Keyword::Simple,
+            Value::Logical(true),
+            Some(" FITS STANDARD"),
+        );
+        assert_eq!(format!("{}", record), "Simple = true /  FITS STANDARD");
+        let record = KeywordRecord::new(
+            Keyword::Unknown(*b"CREATOR "),
+            Value::Unknown(String::from("'STWFITS '")),
+            Some("Fitsio version 11-May-1995 "),
+        );
+        assert_eq!(
+            format!("{}", record),
+            "Unknown(CREATOR ) = 'STWFITS ' / Fitsio version 11-May-1995 "
         );
     }
 }

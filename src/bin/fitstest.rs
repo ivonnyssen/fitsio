@@ -12,7 +12,6 @@ fn main() -> Result<(), std::io::Error> {
 
     tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
 
-    // Traced app logic here...
     let default_filename =
         String::from("/home/parallels/projects/fitsio/FITS-EXAMPLES/EUVEngc4151imgx.fits");
     let args: Vec<String> = env::args().collect();
