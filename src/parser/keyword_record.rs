@@ -123,6 +123,15 @@ mod tests {
                 ))
             ))
         );
+        assert_eq!(
+            keyword_record(
+                b"END                                                                             "
+            ),
+            Ok((
+                &b""[..],
+                (KeywordRecord::new(Keyword::End, Value::CharacterString(String::from("")), None))
+            ))
+        );
     }
 
     #[test]
