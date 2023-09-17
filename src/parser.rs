@@ -13,11 +13,15 @@ fn is_allowed_ascii(c: u8) -> bool {
 }
 
 pub fn hdu(i: &[u8]) -> IResult<&[u8], Vec<KeywordRecord>, VerboseError<&[u8]>> {
-    header::header(i)
+    let res = header::header(i);
+    match res {
+        Ok((i, _)) => image_extension(i),
+        Err(_) => res,
+    }
 }
 
-pub fn extension(i: &[u8]) -> IResult<&[u8], Vec<KeywordRecord>, VerboseError<&[u8]>> {
-    todo!()
+pub fn image_extension(i: &[u8]) -> IResult<&[u8], Vec<KeywordRecord>, VerboseError<&[u8]>> {
+    header::header(i)
 }
 
 #[cfg(test)]

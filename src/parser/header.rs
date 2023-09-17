@@ -1,41 +1,34 @@
-use nom::{
-    bytes::complete::take,
-    combinator::{map_parser, recognize, verify},
-    error::context,
-    error::VerboseError,
-    multi::{count, many0, many_till},
-    IResult,
-};
+use nom::{error::VerboseError, IResult};
 
 use crate::types::keyword::Keyword;
-use crate::types::{KeywordRecord, Value};
+use crate::types::KeywordRecord;
 
 use super::keyword_record;
 
-fn header_block(i: &[u8]) -> IResult<&[u8], Vec<KeywordRecord>, VerboseError<&[u8]>> {
-    context(
-        "header_block",
-        map_parser(take(2880u16), count(keyword_record::keyword_record, 36)),
-    )(i)
-}
-
 pub fn header(i: &[u8]) -> IResult<&[u8], Vec<KeywordRecord>, VerboseError<&[u8]>> {
-    context(
-        "hdu",
-        map_parser(
-            recognize(many_till(
-                header_block,
-                verify(header_block, |block: &Vec<KeywordRecord>| {
-                    block.contains(&KeywordRecord::new(
-                        Keyword::End,
-                        Value::CharacterString(String::from("")),
-                        None,
-                    ))
-                }),
-            )),
-            many0(keyword_record::keyword_record),
-        ),
-    )(i)
+    let mut last_block = false;
+    let mut acc: Vec<KeywordRecord> = Vec::new();
+    let mut input = i;
+    while !last_block {
+        for _ in 0..36 {
+            match keyword_record::keyword_record(input) {
+                Ok((i, record)) => match record.keyword() {
+                    Keyword::End => {
+                        //todo: rework trhe duplication below into a closure if I ever learn that
+                        last_block = true;
+                        input = i;
+                        acc.push(record);
+                    }
+                    _ => {
+                        input = i;
+                        acc.push(record);
+                    }
+                },
+                Err(e) => return Err(e),
+            }
+        }
+    }
+    Ok((input, acc))
 }
 
 #[cfg(test)]
