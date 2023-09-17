@@ -236,6 +236,8 @@ pub fn unknown(i: &[u8]) -> IResult<&[u8], Value, VerboseError<&[u8]>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use proptest::prelude::*;
+
     #[test]
     fn test_character_string() {
         assert_eq!(
@@ -392,6 +394,15 @@ mod tests {
                 )
             ))
         );
+        assert_eq!(
+            date(b"= 0000-01-01T00:00:00.001                                               "),
+            Ok((
+                &b""[..],
+                Value::Date(
+                    PrimitiveDateTime::parse("0000-01-01T00:00:00.001", &DATE_FORMAT).unwrap()
+                )
+            ))
+        );
     }
 
     #[test]
@@ -485,5 +496,21 @@ mod tests {
             ))
         );
         assert!(unknown(b"").is_err());
+    }
+
+    //prop tests
+    proptest! {
+        #[test]
+        fn doesnt_crash(s in "\\PC*") {
+            let _ = character_string(s.as_bytes());
+            let _ = complex_float(s.as_bytes());
+            let _ = complex_integer(s.as_bytes());
+            let _ = continued_string(s.as_bytes());
+            let _ = date(s.as_bytes());
+            let _ = integer(s.as_bytes());
+            let _ = logical(s.as_bytes());
+            let _ = real(s.as_bytes());
+            let _ = unknown(s.as_bytes());
+        }
     }
 }
