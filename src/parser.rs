@@ -1,6 +1,10 @@
 use std::u8;
 
-use nom::{error::VerboseError, IResult};
+use nom::{
+    error::{context, VerboseError},
+    multi::many1,
+    IResult,
+};
 
 use crate::types::KeywordRecord;
 
@@ -12,16 +16,8 @@ fn is_allowed_ascii(c: u8) -> bool {
     (32u8..=126u8).contains(&c)
 }
 
-pub fn hdu(i: &[u8]) -> IResult<&[u8], Vec<KeywordRecord>, VerboseError<&[u8]>> {
-    let res = header::header(i);
-    match res {
-        Ok((i, _)) => image_extension(i),
-        Err(_) => res,
-    }
-}
-
-pub fn image_extension(i: &[u8]) -> IResult<&[u8], Vec<KeywordRecord>, VerboseError<&[u8]>> {
-    header::header(i)
+pub fn hdu(i: &[u8]) -> IResult<&[u8], Vec<Vec<KeywordRecord>>, VerboseError<&[u8]>> {
+    context("hdu", many1(header::header))(i)
 }
 
 #[cfg(test)]

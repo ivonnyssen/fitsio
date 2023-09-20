@@ -95,6 +95,14 @@ impl<'a> KeywordRecord<'a> {
         }
     }
 
+    pub fn end() -> Self {
+        Self {
+            keyword: keyword::Keyword::End,
+            value: Value::CharacterString(String::new()),
+            comment: None,
+        }
+    }
+
     pub fn keyword(&self) -> &keyword::Keyword {
         &self.keyword
     }
