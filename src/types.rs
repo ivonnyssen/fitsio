@@ -14,7 +14,7 @@ pub struct Fits<'a> {
 impl<'a> Fits<'a> {
     pub fn new() -> Self {
         Self {
-            primary_hdu: HDU::new(Header::new(Vec::new()), None),
+            primary_hdu: HDU::new(Header::new(), None),
             extensions: Vec::new(),
         }
     }

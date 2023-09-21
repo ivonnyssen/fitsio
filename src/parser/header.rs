@@ -21,7 +21,7 @@ pub fn header(i: &[u8]) -> IResult<&[u8], Header, VerboseError<&[u8]>> {
             }
         }
     }
-    Ok((input, Header::new(acc)))
+    Ok((input, Header::from(acc)))
 }
 
 #[cfg(test)]
@@ -585,8 +585,12 @@ mod tests {
         let res = res.unwrap();
         assert_eq!(res.0, b"");
         assert_eq!(res.1.len(), 72);
+        assert!(!res.1.has_data_array());
         assert_eq!(res.1.naxis(), 0);
         assert_eq!(res.1.bitpix(), Some(8));
+        assert_eq!(res.1.dimensions(), &Vec::new());
+        assert_eq!(res.1.bzero(), None);
+        assert_eq!(res.1.bscale(), None);
 
         let s = extension_header_string();
         let res = super::header(s.as_bytes());
@@ -594,11 +598,14 @@ mod tests {
         let res = res.unwrap();
         assert_eq!(res.0, b"");
         assert_eq!(res.1.len(), 108);
+        assert!(res.1.has_data_array());
         assert_eq!(res.1.naxis(), 2);
         assert_eq!(res.1.bitpix(), Some(16));
+        assert_eq!(res.1.dimensions(), &vec![512, 512]);
+        assert_eq!(res.1.bzero(), Some(0.0));
+        assert_eq!(res.1.bscale(), Some(1.0));
     }
 
-    //prop tests
     proptest! {
         #[test]
         fn doesnt_crash(s in "\\PC*") {
