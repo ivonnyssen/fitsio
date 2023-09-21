@@ -14,7 +14,8 @@ pub fn parse_headers(file: &std::fs::File) -> Result<(), std::io::Error> {
         }
         header.extend_from_slice(&buffer[..bytes_read]);
     }
-    let (_, _) = parser::hdu(&header).unwrap();
+    let (i, _) = parser::hdu(&header).unwrap();
+    let (_, _) = parser::hdu(i).unwrap();
     Ok(())
 }
 

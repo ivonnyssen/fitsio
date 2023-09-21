@@ -1,81 +1,27 @@
-use nom::branch::alt;
-use nom::combinator::peek;
-use nom::error::{context, ParseError};
-use nom::multi::count;
-use nom::{error::VerboseError, IResult};
+use nom::error::VerboseError;
+use nom::IResult;
 
-use crate::types::keyword::Keyword;
-use crate::types::KeywordRecord;
+use crate::types::{header::Header, keyword::Keyword, keyword_record::KeywordRecord};
 
 use super::keyword_record::{self};
 
-pub fn header(i: &[u8]) -> IResult<&[u8], Vec<KeywordRecord>, VerboseError<&[u8]>> {
-    context("header", alt((primary_header, extension_header)))(i)
-}
-
-pub fn primary_header(i: &[u8]) -> IResult<&[u8], Vec<KeywordRecord>, VerboseError<&[u8]>> {
-    let mut acc: Vec<KeywordRecord> = Vec::new();
+pub fn header(i: &[u8]) -> IResult<&[u8], Header, VerboseError<&[u8]>> {
     let mut input = i;
-    match peek(keyword_record::keyword_record)(input) {
-        Ok((_, record)) => match record.keyword() {
-            Keyword::Simple => loop {
-                match count(keyword_record::keyword_record, 36)(input) {
-                    Ok((i, block)) => {
-                        input = i;
-                        if block.contains(&KeywordRecord::end()) {
-                            acc.extend(block);
-                            return Ok((input, acc));
-                        } else {
-                            acc.extend(block);
-                        }
-                    }
-                    Err(e) => return Err(e),
-                }
-            },
-            _ => Err(nom::Err::Error(VerboseError::from_error_kind(
-                input,
-                nom::error::ErrorKind::Tag,
-            ))),
-        },
-        Err(e) => Err(e),
-    }
-}
-
-pub fn extension_header(i: &[u8]) -> IResult<&[u8], Vec<KeywordRecord>, VerboseError<&[u8]>> {
     let mut last_block = false;
     let mut acc: Vec<KeywordRecord> = Vec::new();
-    let mut input = i;
-    match peek(keyword_record::keyword_record)(input) {
-        Ok((_, record)) => match record.keyword() {
-            Keyword::Xtension => {
-                while !last_block {
-                    for _ in 0..36 {
-                        match keyword_record::keyword_record(input) {
-                            Ok((i, record)) => match record.keyword() {
-                                Keyword::End => {
-                                    //todo: rework trhe duplication below into a closure if I ever learn that
-                                    last_block = true;
-                                    input = i;
-                                    acc.push(record);
-                                }
-                                _ => {
-                                    input = i;
-                                    acc.push(record);
-                                }
-                            },
-                            Err(e) => return Err(e),
-                        }
-                    }
+    while !last_block {
+        for _ in 0..36 {
+            match keyword_record::keyword_record(input) {
+                Ok((i, record)) => {
+                    input = i;
+                    last_block |= *record.keyword() == Keyword::End;
+                    acc.push(record);
                 }
-                Ok((input, acc))
+                Err(e) => return Err(e),
             }
-            _ => Err(nom::Err::Error(VerboseError::from_error_kind(
-                input,
-                nom::error::ErrorKind::Tag,
-            ))),
-        },
-        Err(e) => Err(e),
+        }
     }
+    Ok((input, Header::new(acc)))
 }
 
 #[cfg(test)]
@@ -632,39 +578,31 @@ mod tests {
     }
 
     #[test]
-    fn primary_header() {
+    fn header() {
         let s = primary_header_string();
-        let res = super::primary_header(s.as_bytes());
+        let res = super::header(s.as_bytes());
         assert!(res.is_ok());
         let res = res.unwrap();
         assert_eq!(res.0, b"");
         assert_eq!(res.1.len(), 72);
+        assert_eq!(res.1.naxis(), 0);
+        assert_eq!(res.1.bitpix(), Some(8));
 
         let s = extension_header_string();
-        let res = super::primary_header(s.as_bytes());
-        assert!(res.is_err());
-    }
-
-    #[test]
-    fn extension_header() {
-        let s = extension_header_string();
-        let res = super::extension_header(s.as_bytes());
+        let res = super::header(s.as_bytes());
         assert!(res.is_ok());
         let res = res.unwrap();
         assert_eq!(res.0, b"");
         assert_eq!(res.1.len(), 108);
-
-        let s = primary_header_string();
-        let res = super::extension_header(s.as_bytes());
-        assert!(res.is_err());
+        assert_eq!(res.1.naxis(), 2);
+        assert_eq!(res.1.bitpix(), Some(16));
     }
 
     //prop tests
     proptest! {
         #[test]
         fn doesnt_crash(s in "\\PC*") {
-            let _ = super::primary_header(s.as_bytes());
-            let _ = super::extension_header(s.as_bytes());
+            let _ = super::header(s.as_bytes());
         }
     }
 }

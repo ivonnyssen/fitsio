@@ -1,4 +1,4 @@
-use crate::types::Value;
+use crate::types::value::Value;
 
 use nom::{
     branch::alt,

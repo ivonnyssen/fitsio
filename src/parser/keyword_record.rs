@@ -16,7 +16,7 @@ use crate::parser::value::{
 };
 
 use crate::types::keyword::Keyword;
-use crate::types::KeywordRecord;
+use crate::types::keyword_record::KeywordRecord;
 
 fn keyword(i: &[u8]) -> IResult<&[u8], Keyword, VerboseError<&[u8]>> {
     context("keyword", map(complete(take(8u8)), Keyword::from))(i)
@@ -65,7 +65,7 @@ fn comment(i: &[u8]) -> IResult<&[u8], &str, VerboseError<&[u8]>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{keyword::Keyword, KeywordRecord, Value};
+    use crate::types::{keyword::Keyword, value::Value};
 
     #[test]
     fn test_keyword() {
@@ -120,6 +120,19 @@ mod tests {
                     Keyword::BScale,
                     Value::Real(1.0),
                     Some(" Scale factor for pixel values")
+                ))
+            ))
+        );
+        assert_eq!(
+            keyword_record(
+                b"NAXIS1  =  512 / length of data axis 1                                          "
+            ),
+            Ok((
+                &b""[..],
+                (KeywordRecord::new(
+                    Keyword::NAxisn(1),
+                    Value::Integer(512),
+                    Some(" length of data axis 1")
                 ))
             ))
         );
