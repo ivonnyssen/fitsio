@@ -27,7 +27,7 @@ pub fn hdu(i: &[u8]) -> IResult<&[u8], HDU, VerboseError<&[u8]>> {
                 Ok((i, hdu))
             }
             false => {
-                let hdu = HDU::new(header, Some(DataArray::new()));
+                let hdu = HDU::new(header, None);
                 trace!("{:?}", hdu);
                 Ok((i, hdu))
             }
