@@ -38,7 +38,6 @@ pub fn hdu(i: &[u8]) -> IResult<&[u8], HDU, VerboseError<&[u8]>> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
 
     #[test]
     fn hdu() {}

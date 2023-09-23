@@ -4,7 +4,7 @@ use nom::{
     number, IResult,
 };
 
-use crate::types::{header::FitsHeader, DataArray};
+use crate::types::{data_array::DataArray, header::FitsHeader};
 
 pub fn data_array<'a>(
     i: &'a [u8],
@@ -55,7 +55,7 @@ mod tests {
     use crate::types::header::MockFitsHeader;
 
     #[test]
-    fn data_array() {
+    fn data_array_u8() {
         let mut mock_header = MockFitsHeader::new();
         mock_header
             .expect_has_data_array()
@@ -68,6 +68,25 @@ mod tests {
             .return_const(vec![2, 2]);
         let data = vec![1u8, 2u8, 3u8, 4u8];
         let array = DataArray::from_u8(data.clone());
+        let (i, result) = super::data_array(&data, &mock_header).unwrap();
+        assert_eq!(i, &[]);
+        assert_eq!(result, array);
+    }
+
+    #[test]
+    fn data_array_i16() {
+        let mut mock_header = MockFitsHeader::new();
+        mock_header
+            .expect_has_data_array()
+            .times(1)
+            .return_const(true);
+        mock_header.expect_bitpix().times(2).return_const(Some(16));
+        mock_header
+            .expect_dimensions()
+            .times(1)
+            .return_const(vec![2, 2]);
+        let data = vec![0u8, 1u8, 0u8, 2u8, 0u8, 3u8, 0u8, 4u8];
+        let array = DataArray::from_i16(vec![1i16, 2i16, 3i16, 4i16]);
         let (i, result) = super::data_array(&data, &mock_header).unwrap();
         assert_eq!(i, &[]);
         assert_eq!(result, array);
