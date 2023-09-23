@@ -239,9 +239,9 @@ mod tests {
     use proptest::prelude::*;
 
     #[test]
-    fn test_character_string() {
+    fn character_string() {
         assert_eq!(
-            character_string(
+            super::character_string(
                 b"= 'This file is part of the EUVE Science Archive. It contains'          "
             ),
             Ok((
@@ -252,7 +252,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            character_string(
+            super::character_string(
                 b"= 'String with single quote '' 123.45 , _ + - '                         "
             ),
             Ok((
@@ -261,7 +261,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            character_string(
+            super::character_string(
                 b"= 'String with comment' / not returned in the string                    "
             ),
             Ok((
@@ -272,27 +272,27 @@ mod tests {
     }
 
     #[test]
-    fn test_complex_float() {
+    fn complex_float() {
         assert_eq!(
-            complex_float(
+            super::complex_float(
                 b"= (123.23, -45.7)                                                       "
             ),
             Ok((&b""[..], Value::ComplexFloat((123.23, -45.7))))
         );
         assert_eq!(
-            complex_float(
+            super::complex_float(
                 b"=  (+123.23, 45.7)                                                      "
             ),
             Ok((&b""[..], Value::ComplexFloat((123.23, 45.7))))
         );
         assert_eq!(
-            complex_float(
+            super::complex_float(
                 b"= (-123.23, +45.7)                                                      "
             ),
             Ok((&b""[..], Value::ComplexFloat((-123.23, 45.7))))
         );
         assert_ne!(
-            complex_float(
+            super::complex_float(
                 b"= (500.23, -45.7)                                                       "
             ),
             Ok((&b""[..], Value::ComplexFloat((123.23, -45.7))))
@@ -300,33 +300,33 @@ mod tests {
     }
 
     #[test]
-    fn test_complex_integer() {
+    fn complex_integer() {
         assert_eq!(
-            complex_integer(
+            super::complex_integer(
                 b"= ( 123, 45)                                                            "
             ),
             Ok((&b""[..], Value::ComplexInteger((123, 45))))
         );
         assert_eq!(
-            complex_integer(
+            super::complex_integer(
                 b"=   (123, 45)                                                           "
             ),
             Ok((&b""[..], Value::ComplexInteger((123, 45))))
         );
         assert_eq!(
-            complex_integer(
+            super::complex_integer(
                 b"= (-123,-45)                                                            "
             ),
             Ok((&b""[..], Value::ComplexInteger((-123, -45))))
         );
         assert_eq!(
-            complex_integer(
+            super::complex_integer(
                 b"= (+123, +45)                                                           "
             ),
             Ok((&b""[..], Value::ComplexInteger((123, 45))))
         );
         assert_ne!(
-            complex_integer(
+            super::complex_integer(
                 b"= (-500,-45)                                                            "
             ),
             Ok((&b""[..], Value::ComplexInteger((-123, -45))))
@@ -334,16 +334,16 @@ mod tests {
     }
 
     #[test]
-    fn test_continued_string() {
+    fn continued_string() {
         assert_eq!(
-            continued_string(b"  ' over multiple keyword records.&'"),
+            super::continued_string(b"  ' over multiple keyword records.&'"),
             Ok((
                 &b""[..],
                 Value::CharacterString(" over multiple keyword records.".to_string())
             ))
         );
         assert_eq!(
-            continued_string(b"  '&' / The comment field for this"),
+            super::continued_string(b"  '&' / The comment field for this"),
             Ok((
                 &b"/ The comment field for this"[..],
                 Value::CharacterString("".to_string())
@@ -352,23 +352,29 @@ mod tests {
     }
 
     #[test]
-    fn test_date() {
+    fn date() {
         assert_eq!(
-            date(b"= 0000-01-01T00:00:00                                                   "),
+            super::date(
+                b"= 0000-01-01T00:00:00                                                   "
+            ),
             Ok((
                 &b""[..],
                 Value::Date(PrimitiveDateTime::parse("0000-01-01T00:00:00", &DATE_FORMAT).unwrap())
             ))
         );
         assert_eq!(
-            date(b"=                                                    9999-12-31T23:59:59"),
+            super::date(
+                b"=                                                    9999-12-31T23:59:59"
+            ),
             Ok((
                 &b""[..],
                 Value::Date(PrimitiveDateTime::parse("9999-12-31T23:59:59", &DATE_FORMAT).unwrap())
             ))
         );
         assert_eq!(
-            date(b"= +99999-01-01T00:00:00                                                 "),
+            super::date(
+                b"= +99999-01-01T00:00:00                                                 "
+            ),
             Ok((
                 &b""[..],
                 Value::Date(
@@ -377,7 +383,9 @@ mod tests {
             ))
         );
         assert_eq!(
-            date(b"= +99999-12-31T23:59:59                                                 "),
+            super::date(
+                b"= +99999-12-31T23:59:59                                                 "
+            ),
             Ok((
                 &b""[..],
                 Value::Date(
@@ -386,7 +394,9 @@ mod tests {
             ))
         );
         assert_eq!(
-            date(b"= -04713-11-24T12:00:00                                                 "),
+            super::date(
+                b"= -04713-11-24T12:00:00                                                 "
+            ),
             Ok((
                 &b""[..],
                 Value::Date(
@@ -395,7 +405,9 @@ mod tests {
             ))
         );
         assert_eq!(
-            date(b"= 0000-01-01T00:00:00.001                                               "),
+            super::date(
+                b"= 0000-01-01T00:00:00.001                                               "
+            ),
             Ok((
                 &b""[..],
                 Value::Date(
@@ -406,49 +418,69 @@ mod tests {
     }
 
     #[test]
-    fn test_integer() {
+    fn integer() {
         assert_eq!(
-            integer(b"= +300                                                                  "),
+            super::integer(
+                b"= +300                                                                  "
+            ),
             Ok((&b""[..], Value::Integer(300)))
         );
         assert_eq!(
-            integer(b"=   -300                                                                "),
+            super::integer(
+                b"=   -300                                                                "
+            ),
             Ok((&b""[..], Value::Integer(-300)))
         );
         assert_eq!(
-            integer(b"=  300                                                                  "),
+            super::integer(
+                b"=  300                                                                  "
+            ),
             Ok((&b""[..], Value::Integer(300)))
         );
         assert_eq!(
-            integer(b"= 300                                                                   "),
+            super::integer(
+                b"= 300                                                                   "
+            ),
             Ok((&b""[..], Value::Integer(300)))
         );
         assert_ne!(
-            integer(b"= +500                                                                  "),
+            super::integer(
+                b"= +500                                                                  "
+            ),
             Ok((&b""[..], Value::Integer(300)))
         );
     }
 
     #[test]
-    fn test_logical() {
+    fn logical() {
         assert_eq!(
-            logical(b"=                    T                                                  "),
+            super::logical(
+                b"=                    T                                                  "
+            ),
             Ok((&b""[..], Value::Logical(true)))
         );
         assert_eq!(
-            logical(b"=                    F                                                  "),
+            super::logical(
+                b"=                    F                                                  "
+            ),
             Ok((&b""[..], Value::Logical(false)))
         );
         assert_eq!(
-            logical(b"= T                                                                     "),
+            super::logical(
+                b"= T                                                                     "
+            ),
             Ok((&b""[..], Value::Logical(true)))
         );
         assert_eq!(
-            logical(b"=  F                                                                    "),
+            super::logical(
+                b"=  F                                                                    "
+            ),
             Ok((&b""[..], Value::Logical(false)))
         );
         assert_ne!(
-            logical(b"=  T   /Test comment                                                    "),
+            super::logical(
+                b"=  T   /Test comment                                                    "
+            ),
             Ok((
                 &b"/Test comment                                                    "[..],
                 Value::Logical(false)
@@ -457,36 +489,48 @@ mod tests {
     }
 
     #[test]
-    fn test_real() {
+    fn real() {
         assert_eq!(
-            real(b"= +300.1                                                                "),
+            super::real(
+                b"= +300.1                                                                "
+            ),
             Ok((&b""[..], Value::Real(300.1)))
         );
         assert_eq!(
-            real(b"= -300.1                                                                "),
+            super::real(
+                b"= -300.1                                                                "
+            ),
             Ok((&b""[..], Value::Real(-300.1)))
         );
         assert_eq!(
-            real(b"=                1.0E0 / Scale factor for pixel values                  "),
+            super::real(
+                b"=                1.0E0 / Scale factor for pixel values                  "
+            ),
             Ok((
                 &b"/ Scale factor for pixel values                  "[..],
                 Value::Real(1.0)
             ))
         );
         assert_eq!(
-            real(b"= 300.1                                                                 "),
+            super::real(
+                b"= 300.1                                                                 "
+            ),
             Ok((&b""[..], Value::Real(300.1)))
         );
         assert_ne!(
-            real(b"= +500.1                                                                "),
+            super::real(
+                b"= +500.1                                                                "
+            ),
             Ok((&b""[..], Value::Real(300.1)))
         );
     }
 
     #[test]
-    fn test_unknown() {
+    fn unknown() {
         assert_eq!(
-            unknown(b"XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"),
+            super::unknown(
+                b"XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+            ),
             Ok((
                 &b""[..],
                 Value::Unknown(
@@ -495,22 +539,22 @@ mod tests {
                 )
             ))
         );
-        assert!(unknown(b"").is_err());
+        assert!(super::unknown(b"").is_err());
     }
 
     //prop tests
     proptest! {
         #[test]
         fn doesnt_crash(s in "\\PC*") {
-            let _ = character_string(s.as_bytes());
-            let _ = complex_float(s.as_bytes());
-            let _ = complex_integer(s.as_bytes());
-            let _ = continued_string(s.as_bytes());
-            let _ = date(s.as_bytes());
-            let _ = integer(s.as_bytes());
-            let _ = logical(s.as_bytes());
-            let _ = real(s.as_bytes());
-            let _ = unknown(s.as_bytes());
+            let _ = super::character_string(s.as_bytes());
+            let _ = super::complex_float(s.as_bytes());
+            let _ = super::complex_integer(s.as_bytes());
+            let _ = super::continued_string(s.as_bytes());
+            let _ = super::date(s.as_bytes());
+            let _ = super::integer(s.as_bytes());
+            let _ = super::logical(s.as_bytes());
+            let _ = super::real(s.as_bytes());
+            let _ = super::unknown(s.as_bytes());
         }
     }
 }

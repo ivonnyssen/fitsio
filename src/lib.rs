@@ -22,5 +22,5 @@ pub fn parse_headers(file: &std::fs::File) -> Result<(), std::io::Error> {
 #[cfg(test)]
 mod tests {
     #[test]
-    fn test_lib() {}
+    fn lib() {}
 }

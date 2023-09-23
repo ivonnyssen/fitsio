@@ -48,7 +48,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_display_for_value() {
+    fn display_for_value() {
         assert_eq!(
             format!("{}", Value::CharacterString("hello".to_string())),
             "'hello'"

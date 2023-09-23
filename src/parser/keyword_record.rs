@@ -68,10 +68,13 @@ mod tests {
     use crate::types::{keyword::Keyword, value::Value};
 
     #[test]
-    fn test_keyword() {
-        assert_eq!(keyword(b"COMMENT "), Ok((&b""[..], Keyword::Comment)));
+    fn keyword() {
         assert_eq!(
-            keyword(b"COMMENT-"),
+            super::keyword(b"COMMENT "),
+            Ok((&b""[..], Keyword::Comment))
+        );
+        assert_eq!(
+            super::keyword(b"COMMENT-"),
             Ok((
                 &b""[..],
                 Keyword::Unknown("COMMENT-".as_bytes().try_into().unwrap())
@@ -80,9 +83,9 @@ mod tests {
     }
 
     #[test]
-    fn test_keyword_record() {
+    fn keyword_record() {
         assert_eq!(
-            keyword_record(
+            super::keyword_record(
                 b"COMMENT     'This file is part of the EUVE Science Archive. It contains'        "
             ),
             Ok((
@@ -98,7 +101,7 @@ mod tests {
         );
 
         assert_eq!(
-            keyword_record(
+            super::keyword_record(
                 b"SIMPLE  =                    T / FITS STANDARD                                  "
             ),
             Ok((
@@ -111,7 +114,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            keyword_record(
+            super::keyword_record(
                 b"BSCALE  =                1.0E0 / Scale factor for pixel values                  "
             ),
             Ok((
@@ -124,7 +127,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            keyword_record(
+            super::keyword_record(
                 b"NAXIS1  =  512 / length of data axis 1                                          "
             ),
             Ok((
@@ -137,7 +140,7 @@ mod tests {
             ))
         );
         assert_eq!(
-            keyword_record(
+            super::keyword_record(
                 b"END                                                                             "
             ),
             Ok((
@@ -148,7 +151,7 @@ mod tests {
     }
 
     #[test]
-    fn test_keyword_record_display() {
+    fn keyword_record_display() {
         let record = KeywordRecord::new(
             Keyword::Simple,
             Value::Logical(true),

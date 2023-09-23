@@ -4,11 +4,11 @@ use nom::{
     number, IResult,
 };
 
-use crate::types::{header::Header, DataArray};
+use crate::types::{header::FitsHeader, DataArray};
 
 pub fn data_array<'a>(
     i: &'a [u8],
-    header: &Header,
+    header: &impl FitsHeader,
 ) -> IResult<&'a [u8], DataArray, VerboseError<&'a [u8]>> {
     if !header.has_data_array() | header.bitpix().is_none() {
         return Err(nom::Err::Error(ParseError::from_error_kind(
@@ -52,14 +52,23 @@ pub fn data_array<'a>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::header::Header;
+    use crate::types::header::MockFitsHeader;
 
     #[test]
-    fn test_data_array() {
-        let header = Header::new();
+    fn data_array() {
+        let mut mock_header = MockFitsHeader::new();
+        mock_header
+            .expect_has_data_array()
+            .times(1)
+            .return_const(true);
+        mock_header.expect_bitpix().times(2).return_const(Some(8));
+        mock_header
+            .expect_dimensions()
+            .times(1)
+            .return_const(vec![2, 2]);
         let data = vec![1u8, 2u8, 3u8, 4u8];
         let array = DataArray::from_u8(data.clone());
-        let (i, result) = data_array(&data, &header).unwrap();
+        let (i, result) = super::data_array(&data, &mock_header).unwrap();
         assert_eq!(i, &[]);
         assert_eq!(result, array);
     }

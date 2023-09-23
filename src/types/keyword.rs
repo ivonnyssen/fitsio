@@ -292,7 +292,7 @@ mod test {
 
     use super::*;
     #[test]
-    fn test_keyword_new() {
+    fn keyword_new() {
         assert_eq!(Keyword::new("FZALG", b"FZALG1  "), Keyword::FZALGn(1));
         assert_eq!(Keyword::new("FZALG", b"FZALG999"), Keyword::FZALGn(999));
         assert_eq!(
@@ -309,7 +309,7 @@ mod test {
         );
     }
     #[test]
-    fn test_all_special_keywords() {
+    fn special_keywords() {
         assert_eq!(Keyword::new("NAXIS", b"NAXIS1  "), Keyword::NAxisn(1));
         assert_eq!(Keyword::new("PSCAL", b"PSCAL1  "), Keyword::PScaln(1));
         assert_eq!(Keyword::new("PTYPE", b"PTYPE1  "), Keyword::PTypen(1));
@@ -335,7 +335,7 @@ mod test {
     }
 
     #[test]
-    fn test_all_keywords() {
+    fn all_keywords() {
         let keywords: Vec<(&[u8; 8], Keyword)> = Vec::from([
             ((b"        "), Keyword::Empty),
             ((b"AUTHOR  "), Keyword::Author),
@@ -407,7 +407,7 @@ mod test {
     }
 
     #[test]
-    fn test_keyword_display() {
+    fn keyword_display() {
         assert_eq!(format!("{}", Keyword::Author), "Author");
         assert_eq!(
             format!("{}", Keyword::Unknown(*b"CREATOR ")),

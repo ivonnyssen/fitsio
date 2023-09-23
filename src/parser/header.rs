@@ -28,6 +28,8 @@ pub fn header(i: &[u8]) -> IResult<&[u8], Header, VerboseError<&[u8]>> {
 mod tests {
     use proptest::prelude::*;
 
+    use crate::types::header::FitsHeader;
+
     fn primary_header_string() -> String {
         let mut input = String::from(
             r#"SIMPLE  =                    T / FITS STANDARD                                  "#,

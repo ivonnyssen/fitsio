@@ -6,7 +6,7 @@ use nom::{
 };
 use tracing::trace;
 
-use crate::types::{DataArray, HDU};
+use crate::types::{header::FitsHeader, HDU};
 
 mod data_array;
 mod header;
@@ -41,5 +41,5 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_hdu() {}
+    fn hdu() {}
 }
