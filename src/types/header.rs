@@ -23,7 +23,7 @@ pub trait FitsHeader {
     fn bitpix(&self) -> Option<i8>;
     fn dimensions(&self) -> &Vec<u32>;
     fn bzero(&self) -> Option<f32>;
-    fn bscale(&self) -> Option<f32>;
+    fn bscale(&self) -> Option<f64>;
     fn pcount(&self) -> Option<u32>;
     fn gcount(&self) -> Option<u32>;
 }
@@ -37,7 +37,7 @@ pub struct Header<'a> {
     bitpix: Option<i8>,
     dimensions: Vec<u32>,
     bzero: Option<f32>,
-    bscale: Option<f32>,
+    bscale: Option<f64>,
     pcount: Option<u32>,
     gcount: Option<u32>,
 }
@@ -75,7 +75,7 @@ impl<'a> FitsHeader for Header<'a> {
         self.bzero
     }
 
-    fn bscale(&self) -> Option<f32> {
+    fn bscale(&self) -> Option<f64> {
         self.bscale
     }
 
@@ -198,7 +198,7 @@ impl<'a> Header<'a> {
                 {
                     Some(record) => {
                         if let Value::Real(n) = record.value() {
-                            Some(*n as f32)
+                            Some(*n)
                         } else {
                             None
                         }

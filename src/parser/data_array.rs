@@ -20,27 +20,75 @@ pub fn data_array<'a>(
     match header.bitpix().unwrap() {
         8 => {
             let (i, data_array) = count(number::complete::u8, number_of_elements)(i)?;
-            Ok((i, DataArray::from_u8(data_array)))
+            Ok((
+                i,
+                DataArray::from_u8(
+                    data_array,
+                    header.dimensions().clone(), // todo: should this be a &header.dimensions?
+                    header.bzero(),
+                    header.bscale(),
+                ),
+            ))
         }
         16 => {
             let (i, data_array) = count(number::complete::be_i16, number_of_elements)(i)?;
-            Ok((i, DataArray::from_i16(data_array)))
+            Ok((
+                i,
+                DataArray::from_i16(
+                    data_array,
+                    header.dimensions().clone(),
+                    header.bzero(),
+                    header.bscale(),
+                ),
+            ))
         }
         32 => {
             let (i, data_array) = count(number::complete::be_i32, number_of_elements)(i)?;
-            Ok((i, DataArray::from_i32(data_array)))
+            Ok((
+                i,
+                DataArray::from_i32(
+                    data_array,
+                    header.dimensions().clone(),
+                    header.bzero(),
+                    header.bscale(),
+                ),
+            ))
         }
         64 => {
             let (i, data_array) = count(number::complete::be_i64, number_of_elements)(i)?;
-            Ok((i, DataArray::from_i64(data_array)))
+            Ok((
+                i,
+                DataArray::from_i64(
+                    data_array,
+                    header.dimensions().clone(),
+                    header.bzero(),
+                    header.bscale(),
+                ),
+            ))
         }
         -32 => {
             let (i, data_array) = count(number::complete::be_f32, number_of_elements)(i)?;
-            Ok((i, DataArray::from_f32(data_array)))
+            Ok((
+                i,
+                DataArray::from_f32(
+                    data_array,
+                    header.dimensions().clone(),
+                    header.bzero(),
+                    header.bscale(),
+                ),
+            ))
         }
         -64 => {
             let (i, data_array) = count(number::complete::be_f64, number_of_elements)(i)?;
-            Ok((i, DataArray::from_f64(data_array)))
+            Ok((
+                i,
+                DataArray::from_f64(
+                    data_array,
+                    header.dimensions().clone(),
+                    header.bzero(),
+                    header.bscale(),
+                ),
+            ))
         }
         _ => Err(nom::Err::Error(ParseError::from_error_kind(
             i,
@@ -64,10 +112,12 @@ mod tests {
         mock_header.expect_bitpix().times(2).return_const(Some(8));
         mock_header
             .expect_dimensions()
-            .times(1)
+            .times(2)
             .return_const(vec![2, 2]);
+        mock_header.expect_bzero().times(1).return_const(Some(0.0));
+        mock_header.expect_bscale().times(1).return_const(Some(1.0));
         let data = vec![1u8, 2u8, 3u8, 4u8];
-        let array = DataArray::from_u8(data.clone());
+        let array = DataArray::from_u8(data.clone(), vec![2, 2], None, None);
         let (i, result) = super::data_array(&data, &mock_header).unwrap();
         assert_eq!(i, &[]);
         assert_eq!(result, array);
@@ -83,10 +133,17 @@ mod tests {
         mock_header.expect_bitpix().times(2).return_const(Some(16));
         mock_header
             .expect_dimensions()
-            .times(1)
+            .times(2)
             .return_const(vec![2, 2]);
+        mock_header.expect_bzero().times(1).return_const(Some(0.0));
+        mock_header.expect_bscale().times(1).return_const(Some(1.0));
         let data = vec![0u8, 1u8, 0u8, 2u8, 0u8, 3u8, 0u8, 4u8];
-        let array = DataArray::from_i16(vec![1i16, 2i16, 3i16, 4i16]);
+        let array = DataArray::from_i16(
+            vec![1i16, 2i16, 3i16, 4i16],
+            vec![2, 2],
+            Some(0.0),
+            Some(1.0),
+        );
         let (i, result) = super::data_array(&data, &mock_header).unwrap();
         assert_eq!(i, &[]);
         assert_eq!(result, array);
