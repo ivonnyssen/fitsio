@@ -54,3 +54,12 @@ impl<'a> HDU<'a> {
         Self { header, data }
     }
 }
+#[derive(PartialEq, Debug)]
+pub enum FitsError {}
+impl std::error::Error for FitsError {}
+
+impl std::fmt::Display for FitsError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "FitsError")
+    }
+}
