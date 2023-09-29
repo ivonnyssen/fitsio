@@ -6,13 +6,15 @@ use std::io::{Read, Write};
 
 use types::{Fits, FitsError};
 
-pub fn parse_fits(_r: impl Read) -> Result<Fits<'static>, FitsError> {
-    todo!()
+pub fn parse_fits(bytes: &[u8]) -> Result<Fits, FitsError> {
+    match parser::fits(bytes) {
+        Ok((_, fits)) => Ok(fits),
+        Err(e) => Err(FitsError::ParseError(e.to_string())),
+    }
 }
 
 /// Writes a fits structure to a file.
 /// returns the number of bytes written.
-
 /// # Examples
 ///
 /// ```

@@ -2,11 +2,12 @@ use std::u8;
 
 use nom::{
     error::{context, VerboseError},
+    multi::many0,
     IResult,
 };
 use tracing::trace;
 
-use crate::types::{header::FitsHeader, HDU};
+use crate::types::{header::FitsHeader, Fits, HDU};
 
 mod data_array;
 mod header;
@@ -32,6 +33,13 @@ pub fn hdu(i: &[u8]) -> IResult<&[u8], HDU, VerboseError<&[u8]>> {
                 Ok((i, hdu))
             }
         },
+        Err(e) => Err(e),
+    }
+}
+
+pub fn fits(i: &[u8]) -> IResult<&[u8], Fits, VerboseError<&[u8]>> {
+    match context("fits", many0(hdu))(i) {
+        Ok((i, hdus)) => Ok((i, Fits::from(hdus))),
         Err(e) => Err(e),
     }
 }

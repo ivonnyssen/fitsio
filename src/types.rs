@@ -6,27 +6,36 @@ pub mod value;
 
 use data_array::DataArray;
 use header::Header;
+use nom::error;
+use thiserror::Error;
+
+use self::header::{FitsHeader, HeaderKind};
 
 #[derive(PartialEq, Debug)]
 pub struct Fits<'a> {
-    primary_hdu: HDU<'a>,
-    extensions: Vec<HDU<'a>>,
+    hdus: Vec<HDU<'a>>,
 }
 
 impl<'a> Fits<'a> {
     pub fn new() -> Self {
-        Self {
-            primary_hdu: HDU::new(Header::new(), None),
-            extensions: Vec::new(),
-        }
+        Self { hdus: Vec::new() }
     }
 
-    pub fn primary_hdu(&self) -> &HDU {
-        &self.primary_hdu
+    pub fn primary_hdu(&self) -> Option<&HDU> {
+        self.hdus
+            .iter()
+            .find(|hdu| *hdu.header().header_kind() == HeaderKind::Primary)
     }
 
-    pub fn extensions(&self) -> &[HDU] {
-        &self.extensions
+    pub fn extensions(&self) -> Vec<&HDU> {
+        self.hdus
+            .iter()
+            .filter(|hdu| *hdu.header().header_kind() != HeaderKind::Primary)
+            .collect()
+    }
+
+    pub fn from(hdus: Vec<HDU<'a>>) -> Self {
+        Self { hdus }
     }
 }
 
@@ -54,12 +63,20 @@ impl<'a> HDU<'a> {
         Self { header, data }
     }
 }
-#[derive(PartialEq, Debug)]
-pub enum FitsError {}
-impl std::error::Error for FitsError {}
+#[derive(Error, Debug, PartialEq)]
+#[error("could not pars fits file")]
+pub enum FitsError {
+    ParseError(String),
+}
 
-impl std::fmt::Display for FitsError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "FitsError")
+impl From<error::VerboseError<&[u8]>> for FitsError {
+    fn from(_: error::VerboseError<&[u8]>) -> Self {
+        Self::ParseError("".to_string())
+    }
+}
+
+impl From<std::io::Error> for FitsError {
+    fn from(e: std::io::Error) -> Self {
+        Self::ParseError(e.to_string())
     }
 }
